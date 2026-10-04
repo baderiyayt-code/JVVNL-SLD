@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- CRITICAL FIX: Sabhi scripts aur connections ko allow karne ke liye CSP -->
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: gap: https://ssl.gstatic.com; style-src * 'unsafe-inline'; media-src *; img-src * data: content: blob:;">
+    <!-- Sabhi external connections aur scripts ko allow karne ke liye relax CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob: gap:; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval';">
     
     <title>DISCOM GIS Survey</title>
+    
+    <!-- CSS Link -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -33,13 +35,13 @@
 
     <!-- Main App UI -->
     <div id="app-ui" class="hidden">
-        <h2 style="padding: 20px;">Map Area (Test Mode)</h2>
+        <div id="map" style="width:100%; height:100vh; background: #e5e5e5; display:flex; justify-content:center; align-items:center;">
+            <h2>Map Area Loading...</h2>
+        </div>
     </div>
 
-    <!-- External Libraries -->
+    <!-- Scripts hamesha body ke end mein honi chahiye taaki UI block na ho -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Custom Scripts -->
     <script src="js/auth.js"></script>
 </body>
 </html>
