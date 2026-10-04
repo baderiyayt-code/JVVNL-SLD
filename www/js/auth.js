@@ -4,7 +4,6 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 let supabase = null;
 let db = { nodes: null, lines: null, photos: null };
 
-// सुरक्षित तरीके से लोकल डेटाबेस इनिशियलाइज़ करें
 try {
     if (window.localforage) {
         db.nodes = localforage.createInstance({ name: "GIS", storeName: "nodes" });
@@ -15,18 +14,38 @@ try {
     console.error("LocalForage Error:", e);
 }
 
-// सुरक्षित तरीके से Supabase इनिशियलाइज़ करें
 try {
     if (window.supabase) {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } else {
-        console.warn("Supabase library not found. App will run strictly offline.");
     }
 } catch (e) {
     console.error("Supabase init error:", e);
 }
 
-const Auth = {
+// FIX: window.Auth सेट किया ताकि HTML onclick काम करे
+window.Auth = {
+    
+    // 1. New User Registration
+    async signUp() {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        if (!email || !password) return alert("Please enter email and password to create an account.");
+        if (!supabase) return alert("Database offline. Cannot create account right now.");
+
+        try {
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                alert("Sign Up Failed: " + error.message);
+                return;
+            }
+            alert("Account Created Successfully! You can now click 'Secure Login' to enter.");
+        } catch (e) {
+            alert("Network Error during Sign Up.");
+        }
+    },
+
+    // 2. Existing User Login
     async login() {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
@@ -43,10 +62,11 @@ const Auth = {
             this.showApp();
         } catch (e) {
             alert("Database Connection Failed. Running offline.");
-            this.showApp(); // क्रैश होने पर भी ऐप खुलने दें
+            this.showApp();
         }
     },
 
+    // 3. Skip Login for testing
     skipLogin() {
         this.showApp();
     },
@@ -57,7 +77,7 @@ const Auth = {
         
         // सुरक्षित तरीके से मैप लोड करें
         if (window.App && typeof window.App.initMap === 'function') {
-            App.initMap();
+            window.App.initMap();
         }
     },
 
@@ -78,11 +98,11 @@ const Auth = {
             if (splash) splash.classList.add('hidden');
             
             if (sessionActive) {
-                Auth.showApp();
+                this.showApp();
             } else {
                 document.getElementById('auth-screen').classList.remove('hidden');
             }
-        }, 1500); // 1.5 सेकंड बाद लॉगिन स्क्रीन लाएं
+        }, 1500); 
     },
 
     async logout() {
@@ -93,6 +113,7 @@ const Auth = {
     }
 };
 
+// एप लोड होने पर सेशन चेक करें
 document.addEventListener("DOMContentLoaded", () => {
-    Auth.checkSession();
+    window.Auth.checkSession();
 });
