@@ -21,7 +21,6 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      # FIX: Pin Gradle to version 8.7 to maintain compatibility with Cordova's Groovy scripts
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -30,15 +29,16 @@ jobs:
       - name: Install Cordova
         run: npm install -g cordova
 
-      # FIX: Explicitly use cordova-android@13 to ensure compatibility with Java 17 & Gradle 8
       - name: Add Android Platform
         run: cordova platform add android@13
 
+      # FIX: --release की जगह --debug का उपयोग करें ताकि इनस्टॉल होने योग्य APK बने
       - name: Build APK
-        run: cordova build android --release
+        run: cordova build android --debug
 
+      # FIX: Artifact का सही पाथ सेट किया गया है
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
-          path: platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          name: discom-survey-app
+          path: platforms/android/app/build/outputs/apk/debug/app-debug.apk
