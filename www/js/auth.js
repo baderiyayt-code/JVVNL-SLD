@@ -1,6 +1,6 @@
-// Initialize Supabase with your actual URL and Anon Key
-const SUPABASE_URL = 'https://sxfyeublvtisndnzycib.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4ZnlldWJsdnRpc25kbnp5Y2liIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjkzOTEsImV4cCI6MjEwNDgwNTM5MX0.FENa8zOaDzlYZJI_HfWtallAkWukxSiM52-RGQ-CUmA';
+// Initialize Supabase (अगर आपके पास URL नहीं है, तो कोई बात नहीं, ऐप क्रैश नहीं होगा)
+const SUPABASE_URL = 'https://YOUR_SUPABASE_URL.supabase.co';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Initialize LocalForage (Offline DB)
@@ -15,23 +15,15 @@ const Auth = {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         
-        if (!email || !password) {
-            alert("Please enter both email and password.");
-            return;
-        }
-
         try {
-            // Supabase Authentication Call
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            
             if (error) {
                 alert("Login Failed: " + error.message);
                 return;
             }
-            // लॉगिन सफल होने पर ऐप UI दिखाएं
             this.showApp();
         } catch (e) {
-            alert("Database Connection Failed. Check your internet connection.");
+            alert("Database Connection Failed. Check internet or Supabase keys.");
         }
     },
 
@@ -43,7 +35,7 @@ const Auth = {
     showApp() {
         document.getElementById('auth-screen').classList.add('hidden');
         document.getElementById('app-ui').classList.remove('hidden');
-        App.initMap(); // मैप इनिशियलाइज़ करें
+        App.initMap();
     },
 
     async checkSession() {
@@ -52,11 +44,11 @@ const Auth = {
             let sessionActive = false;
             
             try {
-                // चेक करें कि यूज़र पहले से लॉगिन है या नहीं
+                // कोशिश करें कि Supabase से सेशन चेक हो
                 const { data } = await supabase.auth.getSession();
                 if (data && data.session) sessionActive = true;
             } catch (error) {
-                console.warn("Offline or Supabase error. Showing login screen.");
+                console.warn("Supabase not configured or offline. Showing login screen.");
             }
 
             // Splash Screen को छुपाएं
@@ -74,10 +66,7 @@ const Auth = {
     async logout() {
         try {
             await supabase.auth.signOut();
-        } catch (e) {
-            console.error("Logout error", e);
-        }
-        // पेज रीलोड करके यूज़र को वापस लॉगिन स्क्रीन पर भेजें
+        } catch (e) {}
         window.location.reload();
     }
 };
