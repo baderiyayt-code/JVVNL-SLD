@@ -2,28 +2,36 @@ name: Cordova Build
 on:
   push:
     branches: [ main ]
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: '16'
+          node-version: '20'
+
       - name: Setup Java
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '11'
+          java-version: '17'
+
       - name: Install Cordova
         run: npm install -g cordova
+
       - name: Add Android Platform
         run: cordova platform add android
+
       - name: Build APK
         run: cordova build android --release
+
       - name: Upload Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
           path: platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk
