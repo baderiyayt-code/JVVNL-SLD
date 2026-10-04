@@ -1,5 +1,10 @@
 <?xml version='1.0' encoding='utf-8'?>
-<widget id="com.discom.gissurvey" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+<!-- FIX: Added xmlns:android namespace declaration here -->
+<widget id="com.discom.gissurvey" version="1.0.0" 
+        xmlns="http://www.w3.org/ns/widgets" 
+        xmlns:cdv="http://cordova.apache.org/ns/1.0"
+        xmlns:android="http://schemas.android.com/apk/res/android">
+        
     <name>DISCOM GIS Survey</name>
     <description>Offline-first GIS Single Line Diagram Survey App.</description>
     <author email="dev@discom.com">DISCOM IT Cell</author>
