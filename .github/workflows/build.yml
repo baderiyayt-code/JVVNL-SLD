@@ -21,13 +21,25 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
+      # NEW: Pin Gradle to a version compatible with Cordova
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
       - name: Install Cordova
         run: npm install -g cordova
 
+      # NEW: Ensure the latest Cordova Android engine is used
       - name: Add Android Platform
-        run: cordova platform add android
+        run: |
+          npm install cordova-android@13.0.0 --save
+          cordova platform add android
 
       - name: Build APK
+        # Explicitly tell Cordova to use the Gradle version we just installed
+        env:
+          CORDOVA_ANDROID_GRADLE_DISTRIBUTION_URL: https://services.gradle.org/distributions/gradle-8.7-all.zip
         run: cordova build android --release
 
       - name: Upload Artifact
