@@ -117,3 +117,22 @@ window.Auth = {
 document.addEventListener("DOMContentLoaded", () => {
     window.Auth.checkSession();
 });
+// App load hone par events aur session check karein
+document.addEventListener("DOMContentLoaded", () => {
+    
+    // Buttons ko secure tarike se JavaScript se connect karna
+    document.getElementById('login-btn').addEventListener('click', () => {
+        window.Auth.login();
+    });
+    
+    document.getElementById('signup-btn').addEventListener('click', () => {
+        window.Auth.signUp();
+    });
+    
+    document.getElementById('skip-btn').addEventListener('click', () => {
+        window.Auth.skipLogin();
+    });
+
+    // Session check karein
+    window.Auth.checkSession();
+});
