@@ -23,21 +23,20 @@
         </div>
     </div>
 
-        <!-- Auth Screen -->
+            <!-- Auth Screen -->
     <div id="auth-screen" class="hidden">
         <div class="auth-box">
             <h2>Surveyor Login</h2>
             <input type="email" id="email" placeholder="Email (e.g. surveyor@discom.com)">
             <input type="password" id="password" placeholder="Password">
             
-            <button onclick="window.Auth.login()" id="login-btn">Secure Login</button>
-            
-            <!-- FIX: New User Signup Button -->
-            <button onclick="window.Auth.signUp()" style="background: #28a745; margin-top: 12px;">Create Account</button>
-            
-            <button onclick="window.Auth.skipLogin()" style="background: #666; margin-top: 12px;">Skip Login (Test Map)</button>
+            <!-- Removed onclick, added IDs -->
+            <button id="login-btn">Secure Login</button>
+            <button id="signup-btn" style="background: #28a745; margin-top: 12px;">Create Account</button>
+            <button id="skip-btn" style="background: #666; margin-top: 12px;">Skip Login (Test Map)</button>
         </div>
     </div>
+
 
 
     <!-- Main App UI -->
