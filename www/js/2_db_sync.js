@@ -112,9 +112,51 @@ window.pullFromSupabase = async function() {
     } catch (err) { console.error("Sync error:", err); window.setSyncStatus('offline'); if(map) map.invalidateSize(); window.checkOnboardingFlow(); window.updateUnsyncedBadge(); }
 }
 
+// ==========================================
+// DEBOUNCED SAVING & OFFLINE QUEUE SYSTEM
+// ==========================================
+window.syncTimeout = null;
+
 window.triggerPersistence = function() { 
-    try { if(typeof localforage !== 'undefined') { localforage.setItem(DB_KEY, appState).catch((err) => console.log("LocalForage Error:", err)); } else { localStorage.setItem(DB_KEY, JSON.stringify(appState)); } window.updateUnsyncedBadge(); if(appState.settings && appState.settings.liveSync) { window.syncToSupabase(); } } catch(err) { console.error("Persistence Error:", err); }
-}
+    // Clear previous pending save if user is saving continuously (Debounce)
+    if(window.syncTimeout) clearTimeout(window.syncTimeout);
+    
+    // Wait for 1.5 seconds of inactivity before writing to local database
+    window.syncTimeout = setTimeout(() => {
+        try { 
+            if(typeof localforage !== 'undefined') { 
+                localforage.setItem(DB_KEY, appState).catch((err) => console.error("LocalForage Error:", err)); 
+            } else { 
+                localStorage.setItem(DB_KEY, JSON.stringify(appState)); 
+            } 
+            
+            if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); 
+            
+            // If online, sync. If offline, it stays in the queue (synced = false)
+            if(navigator.onLine && appState.settings && appState.settings.liveSync) { 
+                window.syncToSupabase(); 
+            } else if (!navigator.onLine) {
+                window.setSyncStatus('offline');
+            }
+        } catch(err) { 
+            console.error("Persistence Error:", err); 
+        }
+    }, 1500); // 1.5 second delay prevents UI freezing during rapid edits
+};
+
+// Automatically fire sync when internet connection returns
+window.addEventListener('online', () => {
+    if(appState.settings && appState.settings.liveSync) {
+        window.showToast("Back Online! Syncing background data...");
+        window.syncToSupabase();
+    }
+});
+
+window.addEventListener('offline', () => {
+    window.setSyncStatus('offline');
+    window.showToast("You are offline. Data saved locally.");
+});
+
 
 window.checkOnboardingFlow = function() {
     if(isSetupModalOpen) return;
