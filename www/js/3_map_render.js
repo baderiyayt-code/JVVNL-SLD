@@ -336,3 +336,47 @@ window.undoLastAction = function() {
     net.poles = prevState.poles; net.lines = prevState.lines; net.dts = prevState.dts; net.consumers = prevState.consumers; 
     window.renderEntireNetwork(); window.triggerPersistence(); window.showToast("Undo Successful ↺"); 
 }
+// ==========================================
+// INCREMENTAL DELTA RENDERING (NO MAP FREEZE)
+// ==========================================
+window.addSingleObjectToMap = function(type, obj) {
+    if(!map || !obj || isNaN(obj.lat) || isNaN(obj.lng)) return;
+
+    if (type === 'POLE' || type === 'LTPOLE') {
+        const isOrphan = appState.orphanPoleIds ? appState.orphanPoleIds.has(obj.id) : false;
+        
+        // Find if any DT is associated to draw them together
+        let associatedDTs = [];
+        const net = window.getActiveNetwork();
+        if(net && net.dts) {
+            associatedDTs = net.dts.filter(d => String(d.parentPole) === String(obj.poleNo));
+        }
+
+        const svgHtml = window.getPoleWithDTHTML(obj, associatedDTs, isOrphan);
+        const m = L.marker([obj.lat, obj.lng], { 
+            icon: L.divIcon({ className: 'pole-marker-icon', html: svgHtml, iconSize: [50, 75], iconAnchor: [25, 16] }), 
+            zIndexOffset: 200 
+        });
+        
+        m.on('click', () => { window.openObjectSheet('POLE', obj.id, `Pole ${obj.poleNo}`, `Type: <b>${obj.lineType || 'HT'}</b><br>Config: <b>${obj.poleType || 'Standard'}</b>`); }); 
+        if(featureGroups.poles) featureGroups.poles.addLayer(m);
+    } 
+    else if (type === 'DT') {
+        const isOrphan = appState.orphanPoleIds ? appState.orphanPoleIds.has(obj.id) : false;
+        const svgHtml = window.getDTSVG(obj.phase, obj.rating);
+        const m = L.marker([obj.lat, obj.lng], { 
+            icon: L.divIcon({ className: `dt-square-icon ${isOrphan ? 'orphan-pulse' : ''}`, html: svgHtml, iconSize: [34, 40], iconAnchor: [17, 20] }), 
+            zIndexOffset: 400 
+        });
+        m.on('click', () => { window.openDTFromSVG(null, obj.id); }); 
+        if(featureGroups.dts) featureGroups.dts.addLayer(m);
+    }
+    else if (type === 'CONSUMER') {
+        const m = L.marker([obj.lat, obj.lng], { 
+            icon: L.divIcon({ className: 'consumer-marker-icon', html: window.getConsumerSVG(obj.cType, obj.status), iconSize: [34,34], iconAnchor: [17, 17] }), 
+            zIndexOffset: 100 
+        });
+        m.on('click', () => { window.openObjectSheet('CONSUMER', obj.id, obj.name, `K-No: <b>${obj.kno}</b>`); }); 
+        if(featureGroups.consumers) featureGroups.consumers.addLayer(m);
+    }
+};
