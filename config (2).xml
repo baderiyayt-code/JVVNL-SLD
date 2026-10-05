@@ -1,0 +1,51 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.discom.surveypro" version="1.0.0" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0" xmlns:android="http://schemas.android.com/apk/res/android">
+    <name>DISCOM Pro</name>
+    <description>Enterprise Survey App for DISCOM</description>
+    <author email="admin@discom.com" href="http://discom.com">Suraj Singh Mehta</author>
+    
+    <content src="index.html" />
+    <access origin="*" />
+    <allow-intent href="http://*/*" />
+    <allow-intent href="https://*/*" />
+    <allow-intent href="tel:*" />
+    <allow-intent href="sms:*" />
+    <allow-intent href="mailto:*" />
+    <allow-intent href="geo:*" />
+    
+    <icon src="res/icon.png" />
+    
+    <preference name="Orientation" value="portrait" />
+    
+    <!-- NEW ANDROID 12+ SPLASH SCREEN PREFERENCES -->
+    
+    <preference name="AndroidXEnabled" value="true" />
+    
+    <platform name="android">
+        <allow-intent href="market:*" />
+        
+        <!-- Fix for Storage Permissions on Newer Android -->
+        <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application">
+            <application android:requestLegacyExternalStorage="true" />
+        </edit-config>
+        
+        <config-file target="AndroidManifest.xml" parent="/*">
+            <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+        </config-file>
+    </platform>
+
+    <!-- Required Plugins -->
+    <plugin name="cordova-plugin-geolocation" />
+    <plugin name="cordova-plugin-android-permissions" />
+    <plugin name="cordova-plugin-camera" />
+    <plugin name="cordova-plugin-splashscreen" />
+        <!-- File Storage Permissions for Downloading -->
+    <plugin name="cordova-plugin-file" />
+    <preference name="AndroidPersistentFileLocation" value="Compatibility" />
+    
+    <!-- Android 10+ Storage Compatibility -->
+    <edit-config file="app/src/main/AndroidManifest.xml" mode="merge" target="/manifest/application" xmlns:android="http://schemas.android.com/apk/res/android">
+        <application android:requestLegacyExternalStorage="true" />
+    </edit-config>
+
+</widget>
