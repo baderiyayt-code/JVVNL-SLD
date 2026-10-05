@@ -1,16 +1,48 @@
 /* --- js/5_crud_actions.js --- */
 
-window.savePhotoData = function(id, base64) {
-    if(!appState.photos) appState.photos = {};
-    appState.photos[id] = base64;
-    window.triggerPersistence();
-    if(window.syncPhotosToCloud) {
-        window.syncPhotosToCloud(id, base64);
+// ==========================================
+// OPTIMIZED PHOTO STORAGE (PREVENTS RAM CRASH)
+// ==========================================
+window.savePhotoData = async function(id, base64) {
+    if(!appState.photos) appState.photos = [];
+    
+    // 1. Save ONLY metadata in appState (Very lightweight)
+    const existingIndex = appState.photos.findIndex(p => p.id === id);
+    if(existingIndex > -1) {
+        appState.photos[existingIndex].synced = false;
+    } else {
+        appState.photos.push({ id: id, object_id: id, synced: false });
     }
+
+    // 2. Save heavy Base64 string in a completely separate IndexedDB record
+    try {
+        if(typeof localforage !== 'undefined') {
+            await localforage.setItem('PHOTO_DATA_' + id, base64);
+        } else {
+            localStorage.setItem('PHOTO_DATA_' + id, base64);
+        }
+    } catch(e) {
+        console.error("Storage Full or Error:", e);
+    }
+    
+    window.triggerPersistence();
+    
+    // Background cloud sync trigger
+    if(window.syncPhotosToCloud) window.syncPhotosToCloud(id, base64);
 };
 
-window.getPhotoUrl = function(id) {
-    return (appState.photos && appState.photos[id]) ? appState.photos[id] : null;
+window.getPhotoUrl = async function(id) {
+    // Dynamically fetch heavy photo only when user clicks to view it
+    try {
+        if(typeof localforage !== 'undefined') {
+            const data = await localforage.getItem('PHOTO_DATA_' + id);
+            return data || null;
+        } else {
+            return localStorage.getItem('PHOTO_DATA_' + id) || null;
+        }
+    } catch(e) {
+        return null;
+    }
 };
 
 // ==========================================
