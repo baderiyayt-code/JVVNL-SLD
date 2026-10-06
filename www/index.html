@@ -77,14 +77,9 @@
         <div class="sidebar-header-gradient"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="user-profile-img"><i class="fa-solid fa-user"></i></div><button class="sheet-close-btn" style="background:rgba(255,255,255,0.2); border:none; color:white;" onclick="DiscomApp.UI.toggleSidebar(false)"><i class="fa-solid fa-times"></i></button></div><h3 style="margin-top:10px; font-weight:800;" id="userNameDisplay">User Name</h3></div>
         <div class="sidebar-menu-list">
             <div class="menu-link-btn" onclick="DiscomApp.UI.openAddGssModal()"><i class="fa-solid fa-plus-circle" style="color:#3b82f6;"></i> Add New GSS</div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder <i class="fa-solid fa-chevron-down" id="gssFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
-<div id="gssFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="gssListContainer"></div></div>
-
-<div class="menu-link-btn" onclick="DiscomApp.UI.openFeederConfigModal()"><i class="fa-solid fa-plus-circle" style="color:#10b981;"></i> Add New Feeder</div>
-
-<div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder <i class="fa-solid fa-chevron-down" id="feederFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
-<div id="feederFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="feederListContainer"></div></div>
-
+            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder</div><div id="gssFolderContent" style="display:none;" class="folder-content"><div id="gssListContainer"></div></div>
+            <div class="menu-link-btn" onclick="DiscomApp.UI.openFeederConfigModal()"><i class="fa-solid fa-plus-circle" style="color:#10b981;"></i> Add New Feeder</div>
+            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder</div><div id="feederFolderContent" style="display:none;" class="folder-content"><div id="feederListContainer"></div></div>
             
             <div class="menu-category-title">Export</div>
             <div class="menu-link-btn" onclick="DiscomApp.Export.generateCadSLDPdf()"><i class="fa-solid fa-file-pdf"></i> SLD PDF</div>
@@ -112,24 +107,7 @@
     <div id="full-photo-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999999;"><button onclick="DiscomApp.UI.closeFullScreenPhoto()" style="position:absolute; top:30px; right:30px;"><i class="fa-solid fa-times"></i></button><img id="full-photo-img" style="max-width:95%; max-height:90%;"></div>
     <div class="modal-overlay" id="formModalOverlay"><div class="modal-sheet" id="modalSheetContent"></div></div>
 
-    <div id="settings-page">
-    <div class="settings-header">
-        <button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button>
-        <h2 style="font-size:1.2rem; font-weight:800;">Settings</h2>
-    </div>
-    <div class="settings-body">
-        <div class="settings-card">
-            <div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option><option value="hi">हिंदी (Hindi)</option></select><label>Language</label></div>
-            <div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option><option value="km">Kilometers (KM)</option></select><label>Distance Unit</label></div>
-            <div class="form-row" style="margin-bottom:0;"><select id="setTheme" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select><label>Theme</label></div>
-        </div>
-        <div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div><h3 style="font-size:0.9rem; font-weight:700;">Live Cloud Sync</h3><p style="font-size:0.75rem; color:var(--text-sub);">Auto-save to Supabase</p></div>
-            <label class="switch"><input type="checkbox" id="setLiveSync" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
-        </div>
-    </div>
-</div>
-
+    <div id="settings-page"><div class="settings-header"><button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button><h2>Settings</h2></div><div class="settings-body"><div class="settings-card"><div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option></select><label>Language</label></div><div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option></select><label>Unit</label></div></div></div></div>
     
     <div id="app-toast"><i class="fa-solid fa-circle-info"></i> <span id="toast-msg">Success!</span></div>
 
