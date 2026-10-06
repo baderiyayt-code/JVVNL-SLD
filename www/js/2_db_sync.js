@@ -144,3 +144,25 @@ window.addEventListener('offline', () => { DiscomApp.DB.setSyncStatus('offline')
 setInterval(() => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn && DiscomApp.State.settings.liveSync) DiscomApp.DB.pullFromSupabase(); }, 60000);
 document.addEventListener('resume', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Fetching updates..."); DiscomApp.DB.pullFromSupabase(); } }, false);
 window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { const syncBtn = document.getElementById('sync-indicator'); if (syncBtn) { syncBtn.style.cursor = 'pointer'; syncBtn.addEventListener('click', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Manual Sync Started..."); DiscomApp.DB.syncToSupabase().then(() => DiscomApp.DB.pullFromSupabase()); } else { DiscomApp.UI.showToast("⚠️ You are offline!"); } }); } }, 2000); });
+/* --- js/2_db_sync.js के बिल्कुल आख़िर में यह जोड़ें --- */
+
+// Global Fallback Bridge for Login & Sync
+window.handleSupabaseAuth = function(mode) {
+    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.handleSupabaseAuth) {
+        return DiscomApp.DB.handleSupabaseAuth(mode);
+    } else {
+        console.error("DiscomApp.DB.handleSupabaseAuth not loaded yet.");
+    }
+};
+
+window.pullFromSupabase = function() {
+    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.pullFromSupabase) {
+        return DiscomApp.DB.pullFromSupabase();
+    }
+};
+
+window.syncToSupabase = function() {
+    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.syncToSupabase) {
+        return DiscomApp.DB.syncToSupabase();
+    }
+};
