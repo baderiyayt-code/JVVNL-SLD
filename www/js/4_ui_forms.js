@@ -63,16 +63,36 @@ DiscomApp.UI.openModal = function(html) { document.getElementById('modalSheetCon
 DiscomApp.UI.closeModal = function() { document.getElementById('formModalOverlay').classList.remove('open'); const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; if(DiscomApp.State.user.isLoggedIn) { setTimeout(() => { if(typeof DiscomApp.UI.checkOnboardingFlow === 'function') DiscomApp.UI.checkOnboardingFlow(); }, 400); } };
 
 DiscomApp.UI.isSavingData = false; 
+/* --- js/4_ui_forms.js ke andar --- */
+
+DiscomApp.UI.isSavingData = false; 
+
 DiscomApp.UI.executeSafeSave = function(actionFn) {
-    if(DiscomApp.UI.isSavingData) return; DiscomApp.UI.isSavingData = true; let hasError = false; const origAlert = window.alert; 
+    if(DiscomApp.UI.isSavingData) return; 
+    DiscomApp.UI.isSavingData = true; 
+    let hasError = false; 
+    let isAsync = false; 
+    
+    const origAlert = window.alert; 
     window.alert = function(msg) { hasError = true; origAlert(msg); };
-    try { const result = actionFn(); if(result === false) hasError = true; } catch(e) { hasError = true; console.error("Save Error:", e); }
+    
+    try { 
+        const result = actionFn(); 
+        if(result === false) hasError = true; 
+        if(result === 'ASYNC') isAsync = true; 
+    } catch(e) { 
+        hasError = true; console.error("Save Error:", e); 
+    }
+    
     window.alert = origAlert; 
-    if(!hasError) {
+    
+    // Agar ASYNC task (jaise Line validation) hai, toh turant modal close ya map render mat karo
+    if(!hasError && !isAsync) {
         DiscomApp.UI.closeModal(); 
         try { if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); } catch(e){ console.error(e); }
         try { if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); } catch(e){ console.error(e); }
     }
+    
     setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
 };
 
