@@ -67,8 +67,55 @@ DiscomApp.Map.updateMapZoomClasses = function() {
 }
 DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
 /* --- js/3_map_render.js में रिप्लेस करें --- */
+/* --- js/3_map_render.js me is function ko replace karein --- */
 DiscomApp.Map.centerMapOnGSS = function() { 
     if(!map) return; 
+    
+    // Timeout added so map renders properly before zooming
+    setTimeout(() => {
+        map.invalidateSize(); 
+        const net = DiscomApp.State.getActiveNetwork(); 
+        if(!net) return; 
+        
+        let latestObj = null;
+        let maxTime = 0;
+
+        // Sabhi objects me se sabse naya (latest updated) object dhundhna
+        const checkArray = (arr) => {
+            (arr || []).forEach(item => {
+                if (item && typeof item.lat === 'number' && !isNaN(item.lat)) {
+                    let time = item.updatedAt || 0;
+                    // Agar updatedAt nahi hai, to object ki ID se time nikalna (jaise POLE_1699999999999)
+                    if (time === 0 && item.id) {
+                        const match = String(item.id).match(/\d{13}/);
+                        if (match) time = parseInt(match[0]);
+                    }
+                    if (time > maxTime) {
+                        maxTime = time;
+                        latestObj = item;
+                    }
+                }
+            });
+        };
+
+        // Poles, DTs aur Consumers me latest object check karein
+        checkArray(net.poles);
+        checkArray(net.dts);
+        checkArray(net.consumers);
+
+        if (latestObj) {
+            // Agar koi object milta hai, to seedha uspar Auto-Zoom (Zoom level 19)
+            map.flyTo([latestObj.lat, latestObj.lng], 19, {animate: true, duration: 1}); 
+        } else {
+            // Agar feeder naya hai aur poora khali hai, tabhi GSS par jayega (Zoom level 17)
+            const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; 
+            if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) {
+                map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); 
+            }
+        }
+    }, 400); 
+};
+
     
     // FIX: Timeout added so map renders properly before zooming
     setTimeout(() => {
