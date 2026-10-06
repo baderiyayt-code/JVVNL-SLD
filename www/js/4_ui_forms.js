@@ -94,8 +94,32 @@ DiscomApp.UI.openFeederConfigModal = function() { DiscomApp.UI.toggleSidebar(fal
 DiscomApp.UI.openEditFeederModal = function(code) { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Feeder Name</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" value="${code}" disabled placeholder=" "><label>Feeder Code (Locked)</label></div><div class="form-row"><input type="text" id="editFeederName" class="form-input" placeholder=" " value="${DiscomApp.State.feeders[code].feeder.name}"><label>New Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveEditedFeeder('${code}')">Save Changes</button>`); }
 DiscomApp.UI.openAddGssModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-plus-circle"></i> Add New GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="inpGssCode" class="form-input" placeholder=" "><label>GSS Code*</label></div><div class="form-row"><input type="text" id="inpGssName" class="form-input" placeholder=" "><label>GSS Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewGss()">Save GSS</button>`); };
 
-DiscomApp.UI.autoSaveSettings = function() { DiscomApp.State.settings.unit = document.getElementById('setUnit').value; DiscomApp.State.settings.language = document.getElementById('setLanguage').value; DiscomApp.State.settings.theme = document.getElementById('setTheme').value; DiscomApp.State.settings.liveSync = document.getElementById('setLiveSync').checked; DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); DiscomApp.DB.triggerPersistence(); DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.showToast("Settings Saved!"); }
-DiscomApp.UI.openSettingsPage = function() { DiscomApp.UI.toggleSidebar(false); if(document.getElementById('setUnit')) document.getElementById('setUnit').value = DiscomApp.State.settings.unit || 'm'; if(document.getElementById('setLanguage')) document.getElementById('setLanguage').value = DiscomApp.State.settings.language || 'en'; if(document.getElementById('setTheme')) document.getElementById('setTheme').value = DiscomApp.State.settings.theme || 'light'; if(document.getElementById('setLiveSync')) document.getElementById('setLiveSync').checked = DiscomApp.State.settings.liveSync !== false; const sp = document.getElementById('settings-page'); if(sp) sp.classList.add('open'); }
+DiscomApp.UI.autoSaveSettings = function() { 
+    DiscomApp.State.settings.unit = document.getElementById('setUnit').value; 
+    DiscomApp.State.settings.language = document.getElementById('setLanguage').value; 
+    DiscomApp.State.settings.theme = document.getElementById('setTheme').value; 
+    DiscomApp.State.settings.liveSync = document.getElementById('setLiveSync').checked; 
+    DiscomApp.State.settings.markerCluster = document.getElementById('setMarkerCluster').checked; 
+    
+    DiscomApp.UI.applyTranslations(); 
+    DiscomApp.UI.applyTheme(); 
+    DiscomApp.DB.triggerPersistence(); 
+    DiscomApp.Map.renderEntireNetwork(); 
+    DiscomApp.UI.showToast("Settings Saved! (Reload map if cluster changed)"); 
+};
+
+    DiscomApp.UI.openSettingsPage = function() { 
+    DiscomApp.UI.toggleSidebar(false); 
+    if(document.getElementById('setUnit')) document.getElementById('setUnit').value = DiscomApp.State.settings.unit || 'm'; 
+    if(document.getElementById('setLanguage')) document.getElementById('setLanguage').value = DiscomApp.State.settings.language || 'en'; 
+    if(document.getElementById('setTheme')) document.getElementById('setTheme').value = DiscomApp.State.settings.theme || 'light'; 
+    if(document.getElementById('setLiveSync')) document.getElementById('setLiveSync').checked = DiscomApp.State.settings.liveSync !== false; 
+    if(document.getElementById('setMarkerCluster')) document.getElementById('setMarkerCluster').checked = DiscomApp.State.settings.markerCluster !== false; 
+    
+    const sp = document.getElementById('settings-page'); 
+    if(sp) sp.classList.add('open'); 
+};
+
 DiscomApp.UI.closeSettingsPage = function() { document.getElementById('settings-page').classList.remove('open'); }
 DiscomApp.UI.openAboutModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-circle-info" style="color:#3b82f6;"></i> About App</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div style="text-align: center; padding: 10px 0 20px 0;"><div style="width: 64px; height: 64px; background: var(--accent); color: white; font-size: 32px; border-radius: 16px; display: flex; align-items:center; justify-content:center; margin: 0 auto 15px auto; box-shadow: 0 8px 20px rgba(37,99,235,0.3);"><i class="fa-solid fa-bolt"></i></div><h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main); margin-bottom: 5px;">DISCOM Survey Pro</h3><p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 20px;">Professional GIS-based field survey mobile application.</p></div>`); };
 DiscomApp.UI.openFilterModal = function() { const f = DiscomApp.State.filters; DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-filter" style="color:#d97706;"></i> Object Filter</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="capsule-filter-group"><label class="capsule"><input type="checkbox" id="flt11" ${f.lines11?'checked':''}><span>11 KV Line</span></label><label class="capsule"><input type="checkbox" id="fltLT" ${f.linesLT?'checked':''}><span>LT Line</span></label><label class="capsule"><input type="checkbox" id="fltPoles" ${f.poles?'checked':''}><span>Poles</span></label><label class="capsule"><input type="checkbox" id="fltDTs" ${f.dts?'checked':''}><span>DT</span></label><label class="capsule"><input type="checkbox" id="fltCons" ${f.consumers?'checked':''}><span>Consumers</span></label></div><button class="btn-action-primary" onclick="DiscomApp.UI.saveFilters()" style="margin-top:20px;">Apply Filters</button>`); }
