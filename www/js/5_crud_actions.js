@@ -1,11 +1,44 @@
 /* --- js/5_crud_actions.js --- */
+
+// --- 1. MISSING MAGIC POLE GEOMETRY FUNCTIONS (FIXED) ---
+DiscomApp.Map.isPointOnSegment = function(p, a, b) { 
+    const dxy = Math.hypot(b.lat - a.lat, b.lng - a.lng); 
+    const dap = Math.hypot(p.lat - a.lat, p.lng - a.lng); 
+    const dbp = Math.hypot(p.lat - b.lat, p.lng - b.lng); 
+    return (dap + dbp) >= (dxy - 0.0001) && (dap + dbp) <= (dxy + 0.0001); 
+};
+
+DiscomApp.Map.calculatePointToSegmentDistance = function(p, a, b) { 
+    const R = 6371000; const rad = Math.PI / 180; 
+    const x = p.lng * Math.cos(a.lat * rad) * R * rad; const y = p.lat * R * rad; 
+    const x1 = a.lng * Math.cos(a.lat * rad) * R * rad; const y1 = a.lat * R * rad; 
+    const x2 = b.lng * Math.cos(a.lat * rad) * R * rad; const y2 = b.lat * R * rad; 
+    const A = x - x1; const B = y - y1; const C = x2 - x1; const D = y2 - y1; 
+    let dot = A * C + B * D; let len_sq = C * C + D * D; let param = -1; 
+    if (len_sq !== 0) param = dot / len_sq; 
+    let xx, yy; 
+    if (param < 0) { xx = x1; yy = y1; } 
+    else if (param > 1) { xx = x2; yy = y2; } 
+    else { xx = x1 + param * C; yy = y1 + param * D; } 
+    const dx = x - xx; const dy = y - yy; 
+    return Math.sqrt(dx * dx + dy * dy); 
+};
+
+// --- 2. MAGIC POLE SPLIT LOGIC ---
 DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     if(!net || !net.lines || !net.poles) return;
     let targetLineIndex = -1; let matchedLine = null; let isLT = (newPole.lineType === 'LT');
     for (let i = 0; i < net.lines.length; i++) {
         const l = net.lines[i]; const isLineLT = l.type && l.type.includes('LT');
         if (isLT && !isLineLT) continue; if (!isLT && isLineLT) continue;
-        if (isLT && newPole.dtCode) { const lineBelongsToThisDT = (nodeId) => { if (nodeId === 'DT_' + newPole.dtCode || nodeId === newPole.dtCode) return true; const foundP = (net.poles||[]).find(x => 'POLE_' + x.poleNo === nodeId || x.id === nodeId || x.poleNo === nodeId); return foundP && String(foundP.dtCode) === String(newPole.dtCode); }; if (!lineBelongsToThisDT(l.fromNode) || !lineBelongsToThisDT(l.toNode)) continue; }
+        if (isLT && newPole.dtCode) { 
+            const lineBelongsToThisDT = (nodeId) => { 
+                if (nodeId === 'DT_' + newPole.dtCode || nodeId === newPole.dtCode) return true; 
+                const foundP = (net.poles||[]).find(x => 'POLE_' + x.poleNo === nodeId || x.id === nodeId || x.poleNo === nodeId); 
+                return foundP && String(foundP.dtCode) === String(newPole.dtCode); 
+            }; 
+            if (!lineBelongsToThisDT(l.fromNode) || !lineBelongsToThisDT(l.toNode)) continue; 
+        }
         const n1 = DiscomApp.Map.getNodeCoords(l.fromNode); const n2 = DiscomApp.Map.getNodeCoords(l.toNode);
         if (n1 && n2) {
             const distToSegment = DiscomApp.Map.calculatePointToSegmentDistance({ lat: newPole.lat, lng: newPole.lng }, { lat: n1.lat, lng: n1.lng }, { lat: n2.lat, lng: n2.lng });
@@ -17,8 +50,23 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
         const originalFrom = matchedLine.fromNode, originalTo = matchedLine.toNode, lineType = matchedLine.type, linePhase = matchedLine.phase, lineCond = matchedLine.conductor;
         if (isLT) {
             let detectedDtCode = newPole.dtCode || null;
-            if (!detectedDtCode) { const checkNodeForDT = (nodeId) => { if (nodeId.startsWith('DT_')) return nodeId.replace('DT_', ''); const foundPole = (net.poles||[]).find(x => 'POLE_' + x.poleNo === nodeId || x.id === nodeId || x.poleNo === nodeId); if (foundPole && foundPole.dtCode) return foundPole.dtCode; return null; }; detectedDtCode = checkNodeForDT(originalFrom) || checkNodeForDT(originalTo); }
-            if (detectedDtCode) { newPole.dtCode = detectedDtCode; let maxL = 0; (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === String(detectedDtCode) && p.id !== newPole.id).forEach(p => { const pts = String(p.poleNo).split('-'); if(pts.length > 1) { const num = parseInt(pts[1]); if(!isNaN(num) && num > maxL) maxL = num; } }); if(!String(newPole.poleNo).includes('-')) newPole.poleNo = detectedDtCode + '-' + (maxL + 1); }
+            if (!detectedDtCode) { 
+                const checkNodeForDT = (nodeId) => { 
+                    if (nodeId.startsWith('DT_')) return nodeId.replace('DT_', ''); 
+                    const foundPole = (net.poles||[]).find(x => 'POLE_' + x.poleNo === nodeId || x.id === nodeId || x.poleNo === nodeId); 
+                    if (foundPole && foundPole.dtCode) return foundPole.dtCode; return null; 
+                }; 
+                detectedDtCode = checkNodeForDT(originalFrom) || checkNodeForDT(originalTo); 
+            }
+            if (detectedDtCode) { 
+                newPole.dtCode = detectedDtCode; 
+                let maxL = 0; 
+                (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === String(detectedDtCode) && p.id !== newPole.id).forEach(p => { 
+                    const pts = String(p.poleNo).split('-'); 
+                    if(pts.length > 1) { const num = parseInt(pts[1]); if(!isNaN(num) && num > maxL) maxL = num; } 
+                }); 
+                if(!String(newPole.poleNo).includes('-')) newPole.poleNo = detectedDtCode + '-' + (maxL + 1); 
+            }
         }
         net.lines.splice(targetLineIndex, 1);
         const newPoleNodeId = 'POLE_' + newPole.poleNo;
@@ -30,6 +78,7 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     }
 };
 
+// --- 3. CRUD ACTIONS ---
 DiscomApp.CRUD.saveNewPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const poleNo = document.getElementById('inpPoleNo').value.trim(), pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value, pConf = document.getElementById('inpPccConfig').value;
@@ -38,8 +87,9 @@ DiscomApp.CRUD.saveNewPole = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'HT', poleType: pType, condition: pCond, poleConfig: pConf, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
+    net.poles.push(newObj); 
+    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; 
     return true;
 };
 
@@ -52,8 +102,9 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'LT', dtCode: dtCodeClean, poleType: pType, condition: pCond, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
+    net.poles.push(newObj); 
+    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; 
     return true;
 };
 
@@ -73,7 +124,8 @@ DiscomApp.CRUD.saveNewLine = function() {
         else {
             if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
             DiscomApp.UI.showToast("✅ Line saved successfully!");
-            DiscomApp.Map.renderEntireNetwork(); DiscomApp.DB.triggerPersistence();
+            if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
+            if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence();
         }
     };
     return true;
@@ -89,7 +141,7 @@ DiscomApp.CRUD.saveNewDT = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'DT_' + Date.now(), code: code, parentPole: parent.replace('POLE_','').replace('GSS_',''), mountedOn: mountedOn, phase: phase, rating: rating, location: loc, lat: lat, lng: lng };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.dts.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('DT', newObj);
+    net.dts.push(newObj); DiscomApp.State.placementType = null; 
     return true;
 };
 
@@ -101,7 +153,7 @@ DiscomApp.CRUD.saveNewConsumer = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.consumers.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('CONSUMER', newObj);
+    net.consumers.push(newObj); DiscomApp.State.placementType = null; 
     return true;
 };
 
