@@ -248,30 +248,78 @@ window.saveNewLTPole = function() {
     appState.placementType = null; 
     return true;
 };
+// ==========================================
+// ASYNC LINE SAVING WITH BACKGROUND LOOP VALIDATION
+// ==========================================
+
+// Initialize Web Worker globally once
+window.networkValidatorWorker = new Worker('js/loop_worker.js');
 
 window.saveNewLine = function() {
     const net = window.getActiveNetwork(); if(!net) return false;
-    const type = document.getElementById('inpLineType').value, phase = document.getElementById('inpLinePhase') ? document.getElementById('inpLinePhase').value : '', cond = document.getElementById('inpConductor').value, fNode = document.getElementById('inpFromNode').value, tNode = document.getElementById('inpToNode').value;
+    const type = document.getElementById('inpLineType').value;
+    const phase = document.getElementById('inpLinePhase') ? document.getElementById('inpLinePhase').value : '';
+    const cond = document.getElementById('inpConductor').value;
+    const fNode = document.getElementById('inpFromNode').value;
+    const tNode = document.getElementById('inpToNode').value;
+    
     if(!fNode || !tNode || fNode === tNode) { alert("Invalid From/To nodes!"); return false; }
-    if((net.lines||[]).some(l => (l.fromNode === fNode && l.toNode === tNode) || (l.fromNode === tNode && l.toNode === fNode))) { alert("This line route already exists!"); return false; }
+    if((net.lines||[]).some(l => (l.fromNode === fNode && l.toNode === tNode) || (l.fromNode === tNode && l.toNode === fNode))) { 
+        alert("This line route already exists!"); 
+        return false; 
+    }
 
     if(window.saveSnapshot) window.saveSnapshot();
     const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode };
     
+    // Temporarily push line for validation
     net.lines.push(newObj);
-    const isLT = type && type.includes('LT');
-    const validationResult = window.validateNetworkLoops(net, isLT ? 'LT' : 'HT');
     
-    if (validationResult.hasLoop) {
-        net.lines.pop();
-        alert(validationResult.message);
-        return false;
-    }
+    // Show user a quick checking status without freezing UI
+    if(window.showToast) window.showToast("⏳ Checking topology...");
 
-    if(window.tempPhotoUrl) { window.savePhotoData(newObj.id, window.tempPhotoUrl); window.tempPhotoUrl = null; }
-    if(window.showToast) window.showToast("Line saved successfully!");
-    return true;
+    const isLT = type && type.includes('LT');
+
+    // Send data to background worker
+    window.networkValidatorWorker.postMessage({
+        lines: net.lines,
+        poles: net.poles,
+        dts: net.dts,
+        gssNodes: appState.gssNodes,
+        feeder: net.feeder,
+        networkType: isLT ? 'LT' : 'HT'
+    });
+
+    // Listen for worker's reply
+    window.networkValidatorWorker.onmessage = function(e) {
+        const result = e.data;
+        
+        if (result.hasLoop) {
+            // Loop detected, remove the temporary line
+            net.lines.pop();
+            alert(result.message);
+        } else {
+            // No loop, finalise saving
+            if(window.tempPhotoUrl) { 
+                window.savePhotoData(newObj.id, window.tempPhotoUrl); 
+                window.tempPhotoUrl = null; 
+            }
+            if(window.showToast) window.showToast("✅ Line saved successfully!");
+            
+            // Render line smoothly (using Phase 1's delta renderer if available, else full render)
+            if(window.addSingleObjectToMap) {
+                // If you implemented addSingleObjectToMap, we would call it here for lines
+                window.renderEntireNetwork(); // Fallback
+            } else {
+                window.renderEntireNetwork();
+            }
+            window.triggerPersistence();
+        }
+    };
+
+    return true; // Closes modal immediately for smooth UX
 };
+
 
 window.saveNewDT = function() {
     const net = window.getActiveNetwork(); if(!net) return false;
