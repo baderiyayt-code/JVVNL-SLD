@@ -1,45 +1,28 @@
 /* --- js/2_db_sync.js --- */
-window.handleSupabaseAuth = async function(mode) {
-    // FIX: Safely initialize Supabase client if missing during auth click
-    if (!supabaseClient && typeof supabase !== 'undefined') {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
-    
-    if(!supabaseClient) {
-        return alert("Network/Supabase Error. Internet connection check karein ya Supabase URL verify karein.");
-    }
 
-    const email = document.getElementById('authEmail').value.trim();
-    const password = document.getElementById('authPassword').value.trim();
-    const name = document.getElementById('authName').value.trim();
-    
-    if(!email || !password) return alert("Email aur Password bharna zaroori hai!"); 
-    window.showToast("Processing..."); 
-    
+DiscomApp.DB.handleSupabaseAuth = async function(mode) {
+    if(!supabaseClient) return alert("Network/Supabase Error.");
+    const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPassword').value.trim(), name = document.getElementById('authName').value.trim();
+    if(!email || !password) return alert("Email and Password required!"); 
+    DiscomApp.UI.showToast("Processing..."); 
     try {
         let response;
         if (mode === 'signup') { 
-            if(!name) return alert("Sign Up ke liye Full Name zaroori hai!"); 
+            if(!name) return alert("Full Name required!"); 
             response = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: name } } }); 
-            if(response.error) { alert("Signup Error: " + response.error.message); } 
-            else { alert("Account Created Successfully! Ab aap Login kar sakte hain."); window.toggleAuthMode(); }
+            if(response.error) alert("Signup Error: " + response.error.message); 
+            else { alert("Account Created! You can now Login."); DiscomApp.UI.toggleAuthMode(); }
         } else { 
             response = await supabaseClient.auth.signInWithPassword({ email, password }); 
-            if (response.error) { alert("Login Error: " + response.error.message); } 
+            if (response.error) alert("Login Error: " + response.error.message); 
             else if (response.data.user) { 
-                appState.user.isLoggedIn = true; 
-                appState.user.email = response.data.user.email; 
-                appState.user.id = response.data.user.id; 
-                appState.user.name = response.data.user.user_metadata?.full_name || email.split('@')[0]; 
-                window.applyAuthUIVisuals(); 
-                await window.pullFromSupabase(); 
-                window.showToast("Login Successful!"); 
+                DiscomApp.State.user.isLoggedIn = true; DiscomApp.State.user.email = response.data.user.email; DiscomApp.State.user.id = response.data.user.id; 
+                DiscomApp.State.user.name = response.data.user.user_metadata?.full_name || email.split('@')[0]; 
+                DiscomApp.UI.applyAuthUIVisuals(); await DiscomApp.DB.pullFromSupabase(); DiscomApp.UI.showToast("Login Successful!"); 
             }
         }
     } catch(err) { console.error("Auth Exception:", err); alert("Connection error: " + err.message); }
-}
-
-
+};
 
 DiscomApp.DB.handleSupabaseLogout = async function() { if(supabaseClient) await supabaseClient.auth.signOut(); if(typeof localforage !== 'undefined') await localforage.clear(); localStorage.clear(); location.reload(); };
 
@@ -144,25 +127,3 @@ window.addEventListener('offline', () => { DiscomApp.DB.setSyncStatus('offline')
 setInterval(() => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn && DiscomApp.State.settings.liveSync) DiscomApp.DB.pullFromSupabase(); }, 60000);
 document.addEventListener('resume', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Fetching updates..."); DiscomApp.DB.pullFromSupabase(); } }, false);
 window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { const syncBtn = document.getElementById('sync-indicator'); if (syncBtn) { syncBtn.style.cursor = 'pointer'; syncBtn.addEventListener('click', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Manual Sync Started..."); DiscomApp.DB.syncToSupabase().then(() => DiscomApp.DB.pullFromSupabase()); } else { DiscomApp.UI.showToast("⚠️ You are offline!"); } }); } }, 2000); });
-/* --- js/2_db_sync.js के बिल्कुल आख़िर में यह जोड़ें --- */
-
-// Global Fallback Bridge for Login & Sync
-window.handleSupabaseAuth = function(mode) {
-    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.handleSupabaseAuth) {
-        return DiscomApp.DB.handleSupabaseAuth(mode);
-    } else {
-        console.error("DiscomApp.DB.handleSupabaseAuth not loaded yet.");
-    }
-};
-
-window.pullFromSupabase = function() {
-    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.pullFromSupabase) {
-        return DiscomApp.DB.pullFromSupabase();
-    }
-};
-
-window.syncToSupabase = function() {
-    if (DiscomApp && DiscomApp.DB && DiscomApp.DB.syncToSupabase) {
-        return DiscomApp.DB.syncToSupabase();
-    }
-};
