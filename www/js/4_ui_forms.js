@@ -48,11 +48,38 @@ DiscomApp.UI.openModal = function(html) { document.getElementById('modalSheetCon
 DiscomApp.UI.closeModal = function() { document.getElementById('formModalOverlay').classList.remove('open'); const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; if(DiscomApp.State.user.isLoggedIn) { setTimeout(() => { if(typeof DiscomApp.UI.checkOnboardingFlow === 'function') DiscomApp.UI.checkOnboardingFlow(); }, 400); } }
 
 DiscomApp.UI.isSavingData = false; 
+/* --- js/4_ui_forms.js mein is function ko replace karein --- */
+
+DiscomApp.UI.isSavingData = false; 
+
 DiscomApp.UI.executeSafeSave = function(actionFn) {
-    if(DiscomApp.UI.isSavingData) return; DiscomApp.UI.isSavingData = true; let hasError = false; const origAlert = window.alert; window.alert = function(msg) { hasError = true; origAlert(msg); };
-    try { const result = actionFn(); if(result === false) hasError = true; } catch(e) { hasError = true; console.error("Save Error:", e); }
-    window.alert = origAlert; if(!hasError) DiscomApp.UI.closeModal(); setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
+    if(DiscomApp.UI.isSavingData) return; 
+    DiscomApp.UI.isSavingData = true; 
+    let hasError = false; 
+    const origAlert = window.alert; 
+    window.alert = function(msg) { hasError = true; origAlert(msg); };
+    
+    try { 
+        const result = actionFn(); 
+        if(result === false) hasError = true; 
+    } catch(e) { 
+        hasError = true; 
+        console.error("Save Error:", e); 
+    }
+    
+    window.alert = origAlert; 
+    
+    if(!hasError) {
+        DiscomApp.UI.closeModal(); 
+        
+        // FIX: Ye lines map ko turant draw karengi aur data ko local DB + Cloud par bhejengi
+        try { if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); } catch(e){ console.error(e); }
+        try { if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); } catch(e){ console.error(e); }
+    }
+    
+    setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
 };
+
 
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); }
 document.addEventListener('click', function(e) { const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } });
