@@ -8,7 +8,7 @@ var supabaseClient = null;
 var ADMIN_EMAIL = 'admin@discom.com';
 
 DiscomApp.State = {
-    settings: { checkOrphanNode: true, unit: 'm', gpsInterval: 3, gpsAccuracy: 10, language: 'en', theme: 'light', liveSync: true }, 
+    settings: { checkOrphanNode: true, unit: 'm', gpsInterval: 3, gpsAccuracy: 10, language: 'en', theme: 'light', liveSync: true, markerCluster: true }, 
     user: { isLoggedIn: false, name: "", email: "", id: null },
     filters: { lines11: true, linesLT: true, poles: true, dts: true, consumers: true },
     currentFeederCode: null, gssNodes: {}, feeders: {}, orphanPoleIds: new Set(), activeMove: null, placementType: null, photos: [], deletedObjectIds: [], deletedFeederCodes: []
