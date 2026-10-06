@@ -1,18 +1,12 @@
 /* --- js/1_config.js --- */
+const DiscomApp = { State: {}, DB: {}, Map: {}, UI: {}, CRUD: {}, Export: {}, Main: {} };
 
-// 1. Master Architecture Namespace
-const DiscomApp = {
-    State: {}, DB: {}, Map: {}, UI: {}, CRUD: {}, Export: {}, Main: {}
-};
-
-// 2. Globals
 var DB_KEY = "DISCOM_ENTERPRISE_DB";
 var SUPABASE_URL = 'https://sxfyeublvtisndnzycib.supabase.co';
 var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4ZnlldWJsdnRpc25kbnp5Y2liIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjkzOTEsImV4cCI6MjEwNDgwNTM5MX0.FENa8zOaDzlYZJI_HfWtallAkWukxSiM52-RGQ-CUmA';
 var supabaseClient = null; 
 var ADMIN_EMAIL = 'admin@discom.com';
 
-// 3. Central State Management
 DiscomApp.State = {
     settings: { checkOrphanNode: true, unit: 'm', gpsInterval: 3, gpsAccuracy: 10, language: 'en', theme: 'light', liveSync: true }, 
     user: { isLoggedIn: false, name: "", email: "", id: null },
@@ -20,23 +14,15 @@ DiscomApp.State = {
     currentFeederCode: null, gssNodes: {}, feeders: {}, orphanPoleIds: new Set(), activeMove: null, placementType: null, photos: [], deletedObjectIds: [], deletedFeederCodes: []
 };
 
-// Map & App Variables
 var historyStack = []; var map = null; var tileLayers = {}; var currentTileIndex = 0; var layerKeys = []; var featureGroups = {}; 
-var isSetupModalOpen = false; var tempPhotoUrl = null; var currentSelectedObj = null; 
-
-// GPS Variables matched exactly with 7_main.js
-var liveTrackWatchId = null; 
-var liveTrackMarker = null; 
-var liveTrackCircle = null; 
-
-var isFirstLocationLock = true; var authMode = 'login'; 
+var isSetupModalOpen = false; var tempPhotoUrl = null; var currentSelectedObj = null; var liveTrackingId = null; 
+var liveUserMarker = null; var liveTrackCircle = null; var liveTrackWatchId = null; var isFirstLocationLock = true; var authMode = 'login'; 
 
 const i18n = {
     en: { appLanguage: "Language", distUnit: "Distance Unit", theme: "Theme", settings: "Settings", save: "Save", edit: "Edit", delete: "Delete", mapSetup: "Network Setup Required", htPole: "HT Pole", ltPole: "LT Pole", line: "Line", dt: "DT", consumer: "Consumer", permReq: "Permissions Required", permDesc: "This app requires Location, Camera and Storage permissions.", grantPerm: "Grant Permissions", kpi11: "11 KV LINE", kpiLT: "LT LINE", kpi3Ph: "3-PH DT", kpi1Ph: "1-PH DT", kpiCons: "CONSUMERS", searchPla: "Search Consumer, DT, Pole..." },
     hi: { appLanguage: "ऐप की भाषा", distUnit: "दूरी की इकाई", theme: "थीम मोड", settings: "सेटिंग्स", save: "सेव करें", edit: "बदलें", delete: "डिलीट", mapSetup: "नेटवर्क सेटअप ज़रूरी है", htPole: "HT पोल", ltPole: "LT पोल", line: "लाइन", dt: "डी.टी", consumer: "कंज्यूमर", permReq: "अनुमति आवश्यक है", permDesc: "इस ऐप को चलाने के लिए Location, Camera और Storage की अनुमति दें।", grantPerm: "अनुमति दें", kpi11: "11 KV लाइन", kpiLT: "LT लाइन", kpi3Ph: "3-फेज़ DT", kpi1Ph: "1-फेज़ DT", kpiCons: "कंज्यूमर", searchPla: "सर्च करें: पोल, डी.टी, उपभोक्ता..." }
 };
 
-// 4. State & Utility Helpers
 DiscomApp.State.getActiveNetwork = function() { 
     let keys = Object.keys(DiscomApp.State.feeders || {}); 
     if (keys.length > 0 && (!DiscomApp.State.currentFeederCode || !DiscomApp.State.feeders[DiscomApp.State.currentFeederCode])) DiscomApp.State.currentFeederCode = keys[0]; 
@@ -49,10 +35,10 @@ DiscomApp.State.getActiveNetwork = function() {
 DiscomApp.State.switchFeeder = function(code) { 
     if (DiscomApp.State.feeders[code]) { 
         DiscomApp.State.currentFeederCode = code; 
-        DiscomApp.UI.updateFeederDropdown(); 
+        if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
         if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); 
-        DiscomApp.Map.centerMapOnGSS(); 
+        if(DiscomApp.Map.centerMapOnGSS) DiscomApp.Map.centerMapOnGSS(); 
         if(DiscomApp.UI.toggleSidebar) DiscomApp.UI.toggleSidebar(false); 
     } 
 };
