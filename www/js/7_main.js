@@ -23,23 +23,25 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         if (!data) { const lsData = localStorage.getItem(DB_KEY); if (lsData) data = JSON.parse(lsData); }
         
         if (data && data.feeders) { 
-            DiscomApp.State = data; 
-            // FIX: Immediately update the Feeder UI so "Loading..." disappears
-            DiscomApp.UI.updateFeederDropdown(); 
+            // FIX: Object.assign का इस्तेमाल करें ताकि फंक्शन्स डिलीट न हों!
+            Object.assign(DiscomApp.State, data);
+            
+            if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         } 
         
-        DiscomApp.UI.applyTranslations(); 
-        DiscomApp.UI.applyTheme();
+        if(DiscomApp.UI.applyTranslations) DiscomApp.UI.applyTranslations(); 
+        if(DiscomApp.UI.applyTheme) DiscomApp.UI.applyTheme();
         
         if (DiscomApp.State.user && DiscomApp.State.user.isLoggedIn) { 
-            DiscomApp.UI.applyAuthUIVisuals(); 
+            if(DiscomApp.UI.applyAuthUIVisuals) DiscomApp.UI.applyAuthUIVisuals(); 
+            
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
-                DiscomApp.Map.renderEntireNetwork(); 
-                DiscomApp.Map.centerMapOnGSS(); 
-                DiscomApp.UI.checkOnboardingFlow(); 
-                DiscomApp.DB.updateUnsyncedBadge(); 
-            }, 300); // Increased timeout to ensure Map div is ready
+                if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
+                if(DiscomApp.Map.centerMapOnGSS) DiscomApp.Map.centerMapOnGSS(); 
+                if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
+                if(DiscomApp.DB.updateUnsyncedBadge) DiscomApp.DB.updateUnsyncedBadge(); 
+            }, 300); 
         } else { 
             document.getElementById('app-container').style.display = 'none'; 
             document.getElementById('auth-screen').style.display = 'flex'; 
@@ -50,8 +52,8 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
                 if (data && data.session && data.session.user) {
                     DiscomApp.State.user.isLoggedIn = true; DiscomApp.State.user.email = data.session.user.email; DiscomApp.State.user.id = data.session.user.id;
                     DiscomApp.State.user.name = data.session.user.user_metadata?.full_name || data.session.user.email.split('@')[0];
-                    DiscomApp.UI.applyAuthUIVisuals(); 
-                    DiscomApp.DB.pullFromSupabase(); 
+                    if(DiscomApp.UI.applyAuthUIVisuals) DiscomApp.UI.applyAuthUIVisuals(); 
+                    if(DiscomApp.DB.pullFromSupabase) DiscomApp.DB.pullFromSupabase(); 
                 }
             }).catch(err => console.log("Offline mode"));
         }
@@ -59,10 +61,9 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         console.error("Init Error:", e); 
         document.getElementById('app-container').style.display = 'none'; 
         document.getElementById('auth-screen').style.display = 'flex'; 
-        DiscomApp.UI.showToast("Offline Mode / Load Error"); 
+        if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Offline Mode / Load Error"); 
     }
 };
-
 
 DiscomApp.Main.startAppStartupSequence = function() {
     setTimeout(() => {
