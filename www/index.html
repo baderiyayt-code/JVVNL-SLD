@@ -2,66 +2,219 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DISCOM Survey Pro</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
-    <link rel="stylesheet" href="css/style.css"> 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/leaflet-rotate@0.2.8/dist/leaflet-rotate.min.js"></script>
-    <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="cordova.js"></script>
+    <!-- Leaflet Marker Cluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-base: #f8fafc;
+            --bg-glass: rgba(255, 255, 255, 0.9);
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --accent: #2563eb;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --icon-scale: 1;
+        }
+        body.dark-mode {
+            --bg-base: #0f172a;
+            --bg-glass: rgba(15, 23, 42, 0.9);
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --accent: #3b82f6;
+            --border: #1e293b;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+            --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.7);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: var(--bg-base); color: var(--text-main); }
+        
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+        
+        /* Top Navigation Bar */
+        .top-nav { position: absolute; top: 12px; left: 12px; right: 12px; z-index: 1000; background: var(--bg-glass); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); }
+        .nav-left { display: flex; align-items: center; gap: 12px; }
+        .nav-right { display: flex; align-items: center; gap: 8px; }
+        .action-btn-sm { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-base); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+        .action-btn-sm:active { transform: scale(0.92); }
+        
+        /* KPI Dashboard Bar */
+        .kpi-container { position: absolute; top: 72px; left: 12px; right: 12px; z-index: 999; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .kpi-container::-webkit-scrollbar { display: none; }
+        .kpi-card { background: var(--bg-glass); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; min-width: 95px; flex: 1; box-shadow: var(--shadow); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .kpi-title { font-size: 0.65rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 2px; text-align: center; }
+        .kpi-value { font-size: 0.95rem; font-weight: 900; color: var(--text-main); text-align: center; }
+
+        /* Floating Action Button (FAB) & Menu */
+        .fab-container { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        .main-fab { width: 62px; height: 62px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 25px rgba(37, 99, 235, 0.4); cursor: pointer; pointer-events: auto; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .main-fab.open { transform: rotate(45deg); background: #ef4444; }
+        
+        #speed-dial-menu { position: absolute; bottom: 85px; left: 50%; transform: translateX(-50%) scale(0.8); opacity: 0; pointer-events: none; transition: all 0.25s ease-in-out; z-index: 999; width: 90%; max-width: 340px; background: var(--bg-glass); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 20px; padding: 14px; box-shadow: var(--shadow-md); }
+        #speed-dial-menu.active { transform: translateX(-50%) scale(1); opacity: 1; pointer-events: auto; }
+        .dial-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .dial-card { background: var(--bg-base); border: 1px solid var(--border); border-radius: 14px; padding: 12px 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; }
+        .dial-card:active { transform: scale(0.95); background: rgba(37, 99, 235, 0.1); }
+        .dial-card span { font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-top: 4px; }
+
+        /* Map Controls Right */
+        .map-controls-right { position: absolute; right: 14px; bottom: 100px; z-index: 999; display: flex; flex-direction: column; gap: 10px; }
+        .ctrl-btn { width: 44px; height: 44px; border-radius: 14px; background: var(--bg-glass); backdrop-filter: blur(12px); border: 1px solid var(--border); color: var(--text-main); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: var(--shadow); cursor: pointer; }
+        .ctrl-btn:active { transform: scale(0.92); }
+
+        /* Center Placement Pin & Reticle Coordinates */
+        #center-placement-pin { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); z-index: 998; font-size: 2.8rem; color: #ef4444; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); pointer-events: none; display: none; }
+        #reticle-coordinates { position: absolute; bottom: 95px; left: 50%; transform: translateX(-50%); z-index: 998; background: rgba(15, 23, 42, 0.85); color: white; padding: 6px 14px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; pointer-events: none; letter-spacing: 0.5px; box-shadow: var(--shadow); }
+        #live-distance-indicator { position: absolute; top: 125px; left: 50%; transform: translateX(-50%); z-index: 998; background: #2563eb; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.7rem; font-weight: 800; display: none; box-shadow: var(--shadow); }
+
+        /* Bottom Sheet Modals & Sheets */
+        .bottom-sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 99999; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+        .bottom-sheet-overlay.open { opacity: 1; pointer-events: auto; }
+        .bottom-sheet-content { width: 100%; max-height: 85vh; background: var(--bg-base); border-top-left-radius: 24px; border-top-right-radius: 24px; border: 1px solid var(--border); padding: 20px; box-shadow: 0 -10px 25px rgba(0,0,0,0.2); transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1); overflow-y: auto; }
+        .bottom-sheet-overlay.open .bottom-sheet-content { transform: translateY(0); }
+        .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .sheet-title { font-size: 1.1rem; font-weight: 900; color: var(--text-main); }
+        .sheet-close-btn { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-glass); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+
+        /* Form Controls */
+        .form-row { position: relative; margin-bottom: 16px; }
+        .form-input, .form-select { width: 100%; padding: 12px 14px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--bg-glass); color: var(--text-main); font-size: 0.95rem; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus { border-color: var(--accent); }
+        .form-row label { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); background: var(--bg-base); padding: 0 4px; color: var(--text-sub); font-size: 0.85rem; pointer-events: none; transition: 0.2s ease; }
+        .form-input:focus ~ label, .form-input:not(:placeholder-shown) ~ label { top: 0; font-size: 0.7rem; color: var(--accent); font-weight: 700; }
+        .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .btn-action-primary { width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 14px; font-weight: 800; font-size: 1rem; cursor: pointer; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); margin-top: 10px; }
+        .btn-action-primary:active { transform: scale(0.98); }
+
+        /* Sidebar Drawer */
+        #sidebarBackdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: none; }
+        #sidebarBackdrop.open { display: block; }
+        #sidebar-drawer { position: fixed; top: 0; left: -300px; width: 300px; height: 100%; background: var(--bg-base); border-right: 1px solid var(--border); z-index: 10000; transition: left 0.3s cubic-bezier(0.1, 0.9, 0.2, 1); display: flex; flex-direction: column; box-shadow: var(--shadow-md); }
+        #sidebar-drawer.open { left: 0; }
+        .sidebar-header { padding: 20px; background: var(--accent); color: white; display: flex; flex-direction: column; gap: 4px; }
+        .sidebar-menu { padding: 15px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+        .menu-link-btn { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg-glass); border: 1px solid var(--border); color: var(--text-main); font-weight: 700; font-size: 0.9rem; cursor: pointer; text-decoration: none; }
+        .menu-link-btn:active { background: rgba(37,99,235,0.1); }
+
+        /* Settings Page */
+        #settings-page { position: fixed; inset: 0; background: var(--bg-base); z-index: 100000; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.1, 0.9, 0.2, 1); display: flex; flex-direction: column; }
+        #settings-page.open { transform: translateX(0); }
+        .settings-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px; }
+        .settings-body { padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        .settings-card { background: var(--bg-glass); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); }
+        
+        /* Toggle Switch */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #cbd5e1; transition: .3s; border-radius: 26px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* Screens: Auth & Permission */
+        #auth-screen { position: fixed; inset: 0; background: #0f172a; z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .auth-card { width: 100%; max-width: 400px; background: rgba(30, 41, 59, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 30px; color: white; box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        #permission-overlay { position: fixed; inset: 0; background: #0f172a; z-index: 9999999; display: none; align-items: center; justify-content: center; padding: 20px; text-align: center; color: white; }
+        #onboarding-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 99999; display: none; align-items: center; justify-content: center; padding: 20px; }
+
+        /* Toast Notification */
+        #app-toast { position: fixed; top: 130px; left: 50%; transform: translateX(-50%) translateY(-20px); background: #0f172a; color: white; padding: 10px 20px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; z-index: 1000000; opacity: 0; pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); }
+        #app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    </style>
 </head>
 <body>
-    <div id="erection-loader"><div class="pro-splash-content"><div class="pro-splash-logo"><i class="fa-solid fa-bolt"></i></div><h1 class="pro-splash-title">DISCOM Survey Pro</h1><p class="pro-splash-subtitle">Electrical Asset Management GIS</p><div class="pro-loader-spinner" id="appLoaderSpinner" style="display:none;"></div><div class="pro-splash-footer"><span>Developed by</span><strong>Suraj Singh Mehta</strong></div></div></div>
-    
-    <div id="auth-screen"><div class="auth-card"><div class="auth-logo"><i class="fa-solid fa-bolt"></i></div><h2>DISCOM Survey Pro</h2><input type="text" id="authName" class="auth-input-glass" placeholder="Full Name" style="display:none;"><input type="email" id="authEmail" class="auth-input-glass" placeholder="Email Address"><input type="password" id="authPassword" class="auth-input-glass" placeholder="Password"><button id="loginBtn" class="btn-action-primary" onclick="DiscomApp.DB.handleSupabaseAuth('login')">Login to Continue</button><button id="signupBtn" class="btn-action-primary btn-signup" style="display:none;" onclick="DiscomApp.DB.handleSupabaseAuth('signup')">Create Account</button><div class="auth-toggle-link" id="authToggleText" onclick="DiscomApp.UI.toggleAuthMode()">Need an account? Sign Up</div></div></div>
 
-    <div id="permission-overlay" style="display:none;"><div class="permission-card"><h2 data-i18n="permReq">Permissions Required</h2><p data-i18n="permDesc">This app strictly requires Location, Camera and Storage permissions.</p><button class="btn-action-primary" onclick="DiscomApp.Main.requestAppPermissions()" data-i18n="grantPerm">Grant Permissions</button></div></div>
-    
-    <div id="onboarding-overlay" style="display:none;"><div class="permission-card"><h2 id="onboarding-title">Network Setup</h2><p id="onboarding-desc">Please add your first GSS.</p><button class="btn-action-primary" id="onboarding-btn">Setup Now</button></div></div>
+    <!-- Startup Erection Loader -->
+    <div id="erection-loader" style="position:fixed; inset:0; background:#0f172a; z-index:99999999; display:flex; flex-direction:column; align-items:center; justify-content:center; color:white;">
+        <div style="font-size:3rem; color:#3b82f6; margin-bottom:15px;"><i class="fa-solid fa-bolt fa-bounce"></i></div>
+        <h2 style="font-size:1.4rem; font-weight:900; letter-spacing:1px;">DISCOM SURVEY PRO</h2>
+        <p style="font-size:0.85rem; color:#94a3b8; margin-top:5px;">Initializing Enterprise GIS Engine...</p>
+    </div>
 
-    <div id="app-container">
-        <div id="map"></div>
-        <div id="top-bar">
-            <div class="header-glass">
-                <div class="header-title-group" onclick="DiscomApp.UI.toggleSidebar(true)"><i class="fa-solid fa-bars" style="color:var(--accent); font-size:1.2rem;"></i><div style="display:flex; flex-direction:column;"><span id="activeFeederLabel" style="font-weight:900; font-size:1rem; color:var(--accent);">Loading...</span></div></div>
-                <div class="header-actions">
-                    <button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-search"></i></button>
-                    <button class="action-btn-sm" onclick="DiscomApp.Map.openOrphanListModal()" title="Check Orphan Nodes" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i></button>
-                    <button class="action-btn-sm" onclick="DiscomApp.DB.syncToSupabase()" id="sync-indicator"><i class="fa-solid fa-cloud"></i></button>
+    <!-- Permission Overlay -->
+    <div id="permission-overlay">
+        <div style="max-width:350px;">
+            <div style="font-size:3rem; color:#3b82f6; margin-bottom:15px;"><i class="fa-solid fa-location-arrow"></i></div>
+            <h2 data-i18n="permReq" style="font-size:1.3rem; font-weight:900; margin-bottom:10px;">Permissions Required</h2>
+            <p data-i18n="permDesc" style="font-size:0.85rem; color:#94a3b8; margin-bottom:20px;">This app requires Location, Camera and Storage permissions.</p>
+            <button class="btn-action-primary" data-i18n="grantPerm" onclick="DiscomApp.Main.requestAppPermissions()">Grant Permissions</button>
+        </div>
+    </div>
+
+    <!-- Auth Login / Signup Screen -->
+    <div id="auth-screen" style="display:none;">
+        <div class="auth-card">
+            <div style="text-align:center; margin-bottom:25px;">
+                <div style="width:56px; height:56px; background:#2563eb; border-radius:14px; display:flex; align-items:center; justify-content:center; margin:0 auto 12px auto; font-size:1.5rem; color:white;"><i class="fa-solid fa-bolt"></i></div>
+                <h2 style="font-size:1.3rem; font-weight:900;">DISCOM Survey Pro</h2>
+                <p style="font-size:0.8rem; color:#94a3b8; margin-top:4px;">Field Asset Mapping & GIS Survey</p>
+            </div>
+            <div class="form-row" style="margin-bottom:12px;"><input type="text" id="authName" class="form-input" placeholder=" " style="display:none; background:rgba(255,255,255,0.05); color:white; border-color:rgba(255,255,255,0.1);"><label style="background:#1e293b; color:#94a3b8;">Full Name</label></div>
+            <div class="form-row" style="margin-bottom:12px;"><input type="email" id="authEmail" class="form-input" placeholder=" " style="background:rgba(255,255,255,0.05); color:white; border-color:rgba(255,255,255,0.1);"><label style="background:#1e293b; color:#94a3b8;">Email Address</label></div>
+            <div class="form-row" style="margin-bottom:20px;"><input type="password" id="authPassword" class="form-input" placeholder=" " style="background:rgba(255,255,255,0.05); color:white; border-color:rgba(255,255,255,0.1);"><label style="background:#1e293b; color:#94a3b8;">Password</label></div>
+            <button class="btn-action-primary" id="loginBtn" onclick="DiscomApp.DB.handleSupabaseAuth('login')">Login to Continue</button>
+            <button class="btn-action-primary" id="signupBtn" style="display:none; background:#10b981;" onclick="DiscomApp.DB.handleSupabaseAuth('signup')">Create Account</button>
+            <div style="text-align:center; margin-top:15px;"><span id="authToggleText" style="font-size:0.8rem; color:#94a3b8; cursor:pointer; text-decoration:underline;" onclick="DiscomApp.UI.toggleAuthMode()">Need an account? Sign Up</span></div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" style="display:none; width:100%; height:100%; position:relative;">
+        
+        <!-- Top Nav -->
+        <div class="top-nav">
+            <div class="nav-left">
+                <button class="action-btn-sm" onclick="DiscomApp.UI.toggleSidebar(true)"><i class="fa-solid fa-bars"></i></button>
+                <div>
+                    <div id="activeFeederLabel" style="font-size:0.95rem; font-weight:900; color:var(--text-main);">Loading...</div>
                 </div>
             </div>
-            <div id="kpi-container" class="kpi-row">
-                <div class="kpi-tile"><div class="kpi-label" id="kpi11Label">11 KV LINE</div><div class="kpi-val" id="kpi11">0.0 M</div></div>
-                <div class="kpi-tile"><div class="kpi-label" id="kpiLTLabel">LT LINE</div><div class="kpi-val" id="kpiLT">0.0 M</div></div>
-                <div class="kpi-tile"><div class="kpi-label" id="kpi3PhLabel">3-PH DT</div><div class="kpi-val" id="kpi3Ph">0</div></div>
-                <div class="kpi-tile"><div class="kpi-label" id="kpi1PhLabel">1-PH DT</div><div class="kpi-val" id="kpi1Ph">0</div></div>
-                <div class="kpi-tile"><div class="kpi-label" id="kpiConsLabel">CONSUMERS</div><div class="kpi-val" id="kpiCons">0</div></div>
+            <div class="nav-right">
+                <button class="action-btn-sm" onclick="DiscomApp.Map.openOrphanListModal()" title="Check Orphan Nodes" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i></button>
+                <button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-magnifying-glass"></i></button>
+                <div id="sync-indicator" class="action-btn-sm" title="Cloud Sync Status"><i class="fa-solid fa-cloud-arrow-up" style="color:#2563eb;"></i></div>
             </div>
-            <div class="kpi-toggle-btn" onclick="DiscomApp.UI.toggleKPIBar()"><i id="kpi-toggle-icon" class="fa-solid fa-chevron-up"></i></div>
         </div>
 
-        <div id="layer-indicator">Street Map</div>
-        <div id="reticle-coordinates">26.915000, 75.783000</div>
-        <div id="center-placement-pin"><i class="fa-solid fa-location-dot" style="color:#ef4444;"></i></div>
-        <div id="live-distance-indicator"></div>
-
-        <div class="right-tools-stack">
-            <div class="round-tool-btn" onclick="DiscomApp.Map.toggleMapLayer()"><i class="fa-solid fa-layer-group"></i></div>
-            <div class="round-tool-btn" onclick="DiscomApp.UI.openFilterModal()" style="color:#d97706;"><i class="fa-solid fa-filter"></i></div>
-            <div class="round-tool-btn" id="liveTrackBtn" onclick="DiscomApp.Main.toggleLiveTracking()"><i class="fa-solid fa-crosshairs"></i></div>
-            <div class="round-tool-btn undo-btn" onclick="DiscomApp.State.undoLastAction()"><i class="fa-solid fa-rotate-left"></i></div>
+        <!-- KPI Dashboard Bar -->
+        <div class="kpi-container">
+            <div class="kpi-card"><span class="kpi-title" id="kpi11Label">11 KV Line</span><span class="kpi-value" id="kpi11">0.0 M</span></div>
+            <div class="kpi-card"><span class="kpi-title" id="kpiLTLabel">LT Line</span><span class="kpi-value" id="kpiLT">0.0 M</span></div>
+            <div class="kpi-card"><span class="kpi-title" id="kpi3PhLabel">3-PH DT</span><span class="kpi-value" id="kpi3Ph">0</span></div>
+            <div class="kpi-card"><span class="kpi-title" id="kpi1PhLabel">1-PH DT</span><span class="kpi-value" id="kpi1Ph">0</span></div>
+            <div class="kpi-card"><span class="kpi-title" id="kpiConsLabel">Consumers</span><span class="kpi-value" id="kpiCons">0</span></div>
         </div>
 
-        <div id="bottom-single-action"><div class="center-plus-fab" id="mainFabBtn" onclick="DiscomApp.UI.toggleSpeedDial(event)"><i class="fa-solid fa-plus"></i></div></div>
+        <!-- Map View -->
+        <div id="map"></div>
+        <div id="center-placement-pin"><i class="fa-solid fa-location-dot"></i></div>
+        <div id="live-distance-indicator">Nearest: None</div>
+        <div id="reticle-coordinates">26.914991, 75.783005</div>
 
-                <div id="speed-dial-menu">
+        <!-- Right Side Map Controls -->
+        <div class="map-controls-right">
+            <button class="ctrl-btn" onclick="DiscomApp.Map.toggleMapLayer()" title="Switch Layer"><i class="fa-solid fa-layer-group"></i></button>
+            <button class="ctrl-btn" onclick="DiscomApp.UI.openFilterModal()" title="Filter Objects"><i class="fa-solid fa-filter"></i></button>
+            <button class="ctrl-btn" id="liveTrackBtn" onclick="DiscomApp.Main.toggleLiveTracking()" title="My Location"><i class="fa-solid fa-location-crosshairs"></i></button>
+            <button class="ctrl-btn" onclick="DiscomApp.State.undoLastAction()" title="Undo Action" style="color:#ea580c;"><i class="fa-solid fa-rotate-left"></i></button>
+        </div>
+
+        <!-- Floating Action Button (FAB) -->
+        <div class="fab-container" id="bottom-single-action">
+            <button class="main-fab" id="mainFabBtn" onclick="DiscomApp.UI.toggleSpeedDial(event)"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        <!-- Speed Dial Floating Menu -->
+        <div id="speed-dial-menu">
             <div class="dial-grid">
                 <div class="dial-card" onclick="DiscomApp.UI.openAddForm('POLE')">
                     <svg viewBox="0 0 60 100" style="width:24px;height:38px; margin-bottom:5px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
@@ -113,70 +266,106 @@
             </div>
         </div>
 
+    </div>
 
+    <!-- Sidebar Drawer -->
     <div id="sidebarBackdrop" onclick="DiscomApp.UI.toggleSidebar(false)"></div>
     <div id="sidebar-drawer">
-        <div class="sidebar-header-gradient"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="user-profile-img"><i class="fa-solid fa-user"></i></div><button class="sheet-close-btn" style="background:rgba(255,255,255,0.2); border:none; color:white;" onclick="DiscomApp.UI.toggleSidebar(false)"><i class="fa-solid fa-times"></i></button></div><h3 style="margin-top:10px; font-weight:800;" id="userNameDisplay">User Name</h3></div>
-        <div class="sidebar-menu-list">
-            <div class="menu-link-btn" onclick="DiscomApp.UI.openAddGssModal()"><i class="fa-solid fa-plus-circle" style="color:#3b82f6;"></i> Add New GSS</div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder <i class="fa-solid fa-chevron-down" id="gssFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div><div id="gssFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="gssListContainer"></div></div>
+        <div class="sidebar-header">
+            <h3 id="userNameDisplay" style="font-size:1.1rem; font-weight:900;">Admin User</h3>
+            <span style="font-size:0.75rem; opacity:0.8;">DISCOM GIS Enterprise</span>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder <i class="fa-solid fa-chevron-down" id="gssFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
+            <div id="gssFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="gssListContainer"></div></div>
+
+            <div class="menu-link-btn" onclick="DiscomApp.UI.openAddGssModal()"><i class="fa-solid fa-plus-circle" style="color:#ef4444;"></i> Add New GSS</div>
             <div class="menu-link-btn" onclick="DiscomApp.UI.openFeederConfigModal()"><i class="fa-solid fa-plus-circle" style="color:#10b981;"></i> Add New Feeder</div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder <i class="fa-solid fa-chevron-down" id="feederFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div><div id="feederFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="feederListContainer"></div></div>
 
-            
-            <div class="menu-category-title">Export</div>
-            <div class="menu-link-btn" onclick="DiscomApp.Export.generateCadSLDPdf()"><i class="fa-solid fa-file-pdf"></i> SLD PDF</div>
-            <div class="menu-link-btn" onclick="DiscomApp.Export.exportToAutoCAD_DXF()"><i class="fa-solid fa-bezier-curve"></i> DXF</div>
-            <div class="menu-link-btn" onclick="DiscomApp.Export.exportToGoogleEarth_KML()"><i class="fa-solid fa-earth-americas"></i> KML</div>
-            <div class="menu-link-btn" onclick="DiscomApp.Export.exportDataToCSV()"><i class="fa-solid fa-file-csv"></i> CSV</div>
-            
-            <div class="menu-category-title">Backup</div>
-            <div class="menu-link-btn" onclick="DiscomApp.Export.exportFullJSONBackup()"><i class="fa-solid fa-download"></i> Export JSON</div>
-            <div class="menu-link-btn" onclick="document.getElementById('importBackupFile').click()"><i class="fa-solid fa-upload"></i> Import JSON</div><input type="file" id="importBackupFile" style="display:none;" accept=".json" onchange="DiscomApp.Export.handleImportChoice(event)">
-            
-            <div class="menu-link-btn" onclick="DiscomApp.UI.openSettingsPage()"><i class="fa-solid fa-gear"></i> Settings</div>
-            <div class="menu-link-btn" style="color:#ef4444;" onclick="DiscomApp.DB.handleSupabaseLogout()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</div>
+            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder <i class="fa-solid fa-chevron-down" id="feederFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
+            <div id="feederFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="feederListContainer"></div></div>
+
+            <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
+            <div class="menu-link-btn" onclick="DiscomApp.Export.generateCadSLDPdf()"><i class="fa-solid fa-file-pdf" style="color:#ef4444;"></i> Export SLD PDF</div>
+            <div class="menu-link-btn" onclick="DiscomApp.Export.exportToGoogleEarth_KML()"><i class="fa-solid fa-earth-americas" style="color:#2563eb;"></i> Export KML</div>
+            <div class="menu-link-btn" onclick="DiscomApp.Export.exportToAutoCAD_DXF()"><i class="fa-solid fa-drafting-compass" style="color:#d97706;"></i> Export DXF</div>
+            <div class="menu-link-btn" onclick="DiscomApp.Export.exportDataToCSV()"><i class="fa-solid fa-file-csv" style="color:#10b981;"></i> Export CSV</div>
+            <div class="menu-link-btn" onclick="DiscomApp.Export.exportFullJSONBackup()"><i class="fa-solid fa-database" style="color:#8b5cf6;"></i> Full JSON Backup</div>
+            <div class="menu-link-btn" onclick="document.getElementById('importFileBtn').click()"><i class="fa-solid fa-file-import" style="color:#06b6d4;"></i> Restore Backup</div>
+            <input type="file" id="importFileBtn" style="display:none" accept=".json" onchange="DiscomApp.Export.handleImportChoice(event)">
+            <hr style="border:0; border-top:1px solid var(--border); margin:10px 0;">
+            <div class="menu-link-btn" onclick="DiscomApp.UI.openSettingsPage()"><i class="fa-solid fa-gear" style="color:var(--text-main);"></i> Settings</div>
+            <div class="menu-link-btn" onclick="DiscomApp.UI.openAboutModal()"><i class="fa-solid fa-circle-info" style="color:#3b82f6;"></i> About App</div>
+            <div class="menu-link-btn" onclick="DiscomApp.DB.handleSupabaseLogout()" style="color:#ef4444;"><i class="fa-solid fa-right-from-bracket"></i> Logout</div>
         </div>
     </div>
 
-    <div class="object-bottom-sheet" id="object-bottom-sheet">
-        <div class="sheet-drag-handle" onclick="DiscomApp.UI.closeObjectSheet()"></div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><div style="flex:1;"><h3 id="objSheetTitle">Title</h3><div id="objSheetDetails">Details...</div></div>
-        <div style="width:100px; height:100px; cursor:pointer;" onclick="if(document.getElementById('objPhotoImg').src) DiscomApp.UI.openFullScreenPhoto(document.getElementById('objPhotoImg').src)"><i id="objPhotoPlaceholder" class="fa-solid fa-image"></i><img id="objPhotoImg" src="" style="width:100%; height:100%; display:none;"></div></div>
-        <div style="display:flex; gap:10px;"><button class="btn-action-primary" id="btnObjEdit">Edit</button><button class="btn-action-primary" id="btnObjMove">Move</button><button class="btn-action-primary" id="btnObjDelete" style="background:#ef4444;">Delete</button></div>
-        <button class="btn-action-primary" style="width:100%;" onclick="DiscomApp.UI.captureObjectPhoto()">Capture New Photo</button>
-    </div>
-
-    <div id="full-photo-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999999;"><button onclick="DiscomApp.UI.closeFullScreenPhoto()" style="position:absolute; top:30px; right:30px;"><i class="fa-solid fa-times"></i></button><img id="full-photo-img" style="max-width:95%; max-height:90%;"></div>
-    <div class="modal-overlay" id="formModalOverlay"><div class="modal-sheet" id="modalSheetContent"></div></div>
-
-    <div id="settings-page"><div class="settings-header"><button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button><h2 style="font-size:1.2rem; font-weight:800;">Settings</h2>
-    </div>
+    <!-- Settings Page -->
     <div id="settings-page">
-    <div class="settings-header">
-        <button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button>
-        <h2 style="font-size:1.2rem; font-weight:800;">Settings</h2>
-    </div>
-    <div class="settings-body">
-        <div class="settings-card">
-            <div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option><option value="hi">हिंदी (Hindi)</option></select><label>Language</label></div>
-            <div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option><option value="km">Kilometers (KM)</option></select><label>Distance Unit</label></div>
-            <div class="form-row" style="margin-bottom:0;"><select id="setTheme" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select><label>Theme</label></div>
+        <div class="settings-header">
+            <button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button>
+            <h2 style="font-size:1.2rem; font-weight:800;" data-i18n="settings">Settings</h2>
         </div>
-        <div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div><h3 style="font-size:0.9rem; font-weight:700;">Live Cloud Sync</h3><p style="font-size:0.75rem; color:var(--text-sub);">Auto-save to Supabase</p></div>
-            <label class="switch"><input type="checkbox" id="setLiveSync" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
+        <div class="settings-body">
+            <div class="settings-card">
+                <div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option><option value="hi">हिंदी (Hindi)</option></select><label data-i18n="appLanguage">Language</label></div>
+                <div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option><option value="km">Kilometers (KM)</option></select><label data-i18n="distUnit">Distance Unit</label></div>
+                <div class="form-row" style="margin-bottom:0;"><select id="setTheme" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select><label data-i18n="theme">Theme</label></div>
+            </div>
+            
+            <div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
+                <div><h3 style="font-size:0.9rem; font-weight:700;">Live Cloud Sync</h3><p style="font-size:0.75rem; color:var(--text-sub);">Auto-save to Supabase</p></div>
+                <label class="switch"><input type="checkbox" id="setLiveSync" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
+            </div>
+
+            <!-- Marker Clustering Card Added -->
+            <div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
+                <div><h3 style="font-size:0.9rem; font-weight:700;">Marker Clustering</h3><p style="font-size:0.75rem; color:var(--text-sub);">Group nearby poles for high performance</p></div>
+                <label class="switch"><input type="checkbox" id="setMarkerCluster" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
+            </div>
         </div>
     </div>
-</div>
-<div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
-    <div><h3 style="font-size:0.9rem; font-weight:700;">Marker Clustering</h3><p style="font-size:0.75rem; color:var(--text-sub);">Group nearby poles for high performance</p></div>
-    <label class="switch"><input type="checkbox" id="setMarkerCluster" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
-</div>
 
+    <!-- Object Bottom Sheet -->
+    <div id="object-bottom-sheet" class="bottom-sheet-overlay">
+        <div class="bottom-sheet-content">
+            <div class="sheet-head"><div class="sheet-title" id="objSheetTitle">Details</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeObjectSheet()"><i class="fa-solid fa-xmark"></i></button></div>
+            <div style="display:flex; gap:14px; align-items:center; margin-bottom:15px;">
+                <div style="position:relative; width:64px; height:64px; border-radius:12px; overflow:hidden; background:var(--bg-glass); border:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;">
+                    <div id="objPhotoPlaceholder" style="font-size:1.4rem; color:var(--text-sub); display:flex;"><i class="fa-solid fa-camera"></i></div>
+                    <img id="objPhotoImg" src="" onclick="DiscomApp.UI.openFullScreenPhoto(this.src)" style="width:100%; height:100%; object-fit:cover; cursor:pointer; display:none;">
+                </div>
+                <div id="objSheetDetails" style="font-size:0.85rem; color:var(--text-main); line-height:1.4; flex:1;"></div>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:8px;">
+                <button class="btn-action-primary" id="btnObjEdit" style="margin:0; font-size:0.8rem; padding:10px; background:#0f172a;"><i class="fa-solid fa-pen"></i> Edit</button>
+                <button class="btn-action-primary" id="btnObjMove" style="margin:0; font-size:0.8rem; padding:10px; background:#2563eb;"><i class="fa-solid fa-location-crosshairs"></i> Move</button>
+                <button class="btn-action-primary" id="btnObjDelete" style="margin:0; font-size:0.8rem; padding:10px; background:#ef4444;"><i class="fa-solid fa-trash"></i> Delete</button>
+                <button class="btn-action-primary" id="btnObjPhoto" style="margin:0; font-size:0.8rem; padding:10px; background:#059669;" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Photo</button>
+            </div>
+        </div>
+    </div>
 
-    <div id="app-toast"><i class="fa-solid fa-circle-info"></i> <span id="toast-msg">Success!</span></div>
+    <!-- General Form Modal Overlay -->
+    <div id="formModalOverlay" class="bottom-sheet-overlay"><div class="bottom-sheet-content" id="modalSheetContent"></div></div>
 
+    <!-- Full Photo Viewer -->
+    <div id="full-photo-viewer" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999999; display:none; align-items:center; justify-content:center; flex-direction:column;">
+        <button style="position:absolute; top:20px; right:20px; background:none; border:none; color:white; font-size:2rem; cursor:pointer;" onclick="DiscomApp.UI.closeFullScreenPhoto()"><i class="fa-solid fa-xmark"></i></button>
+        <img id="full-photo-img" src="" style="max-width:90%; max-height:85vh; object-fit:contain; border-radius:8px;">
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="app-toast"><span id="toast-msg"></span></div>
+
+    <!-- External Libraries & Modular Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/localforage/1.10.0/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <!-- Discom Modules -->
     <script src="js/1_config.js"></script>
     <script src="js/2_db_sync.js"></script>
     <script src="js/3_map_render.js"></script>
