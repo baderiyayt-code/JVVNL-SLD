@@ -33,7 +33,7 @@
                 <div class="header-title-group" onclick="DiscomApp.UI.toggleSidebar(true)"><i class="fa-solid fa-bars" style="color:var(--accent); font-size:1.2rem;"></i><div style="display:flex; flex-direction:column;"><span id="activeFeederLabel" style="font-weight:900; font-size:1rem; color:var(--accent);">Loading...</span></div></div>
                 <div class="header-actions">
                     <button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-search"></i></button>
-                    <button class="action-btn-sm" onclick="DiscomApp.Map.updateOrphanStatus()" title="Check Orphan Nodes" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i></button>
+                    <button class="action-btn-sm" onclick="DiscomApp.Map.openOrphanListModal()" title="Check Orphan Nodes" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i></button>
                     <button class="action-btn-sm" onclick="DiscomApp.DB.syncToSupabase()" id="sync-indicator"><i class="fa-solid fa-cloud"></i></button>
                 </div>
             </div>
