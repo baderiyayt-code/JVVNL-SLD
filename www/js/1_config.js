@@ -22,8 +22,14 @@ DiscomApp.State = {
 
 // Map & App Variables
 var historyStack = []; var map = null; var tileLayers = {}; var currentTileIndex = 0; var layerKeys = []; var featureGroups = {}; 
-var isSetupModalOpen = false; var tempPhotoUrl = null; var currentSelectedObj = null; var liveTrackingId = null; 
-var liveUserMarker = null; var liveTrackCircle = null; var isFirstLocationLock = true; var authMode = 'login'; 
+var isSetupModalOpen = false; var tempPhotoUrl = null; var currentSelectedObj = null; 
+
+// GPS Variables matched exactly with 7_main.js
+var liveTrackWatchId = null; 
+var liveTrackMarker = null; 
+var liveTrackCircle = null; 
+
+var isFirstLocationLock = true; var authMode = 'login'; 
 
 const i18n = {
     en: { appLanguage: "Language", distUnit: "Distance Unit", theme: "Theme", settings: "Settings", save: "Save", edit: "Edit", delete: "Delete", mapSetup: "Network Setup Required", htPole: "HT Pole", ltPole: "LT Pole", line: "Line", dt: "DT", consumer: "Consumer", permReq: "Permissions Required", permDesc: "This app requires Location, Camera and Storage permissions.", grantPerm: "Grant Permissions", kpi11: "11 KV LINE", kpiLT: "LT LINE", kpi3Ph: "3-PH DT", kpi1Ph: "1-PH DT", kpiCons: "CONSUMERS", searchPla: "Search Consumer, DT, Pole..." },
