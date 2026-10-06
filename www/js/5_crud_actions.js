@@ -1,5 +1,4 @@
 /* --- js/5_crud_actions.js --- */
-
 DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     if(!net || !net.lines || !net.poles) return;
     let targetLineIndex = -1; let matchedLine = null; let isLT = (newPole.lineType === 'LT');
@@ -31,9 +30,6 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     }
 };
 
-DiscomApp.Map.isPointOnSegment = function(p, a, b) { const dxy = Math.hypot(b.lat - a.lat, b.lng - a.lng); const dap = Math.hypot(p.lat - a.lat, p.lng - a.lng); const dbp = Math.hypot(p.lat - b.lat, p.lng - b.lng); return (dap + dbp) >= (dxy - 0.0001) && (dap + dbp) <= (dxy + 0.0001); };
-DiscomApp.Map.calculatePointToSegmentDistance = function(p, a, b) { const R = 6371000; const rad = Math.PI / 180; const x = p.lng * Math.cos(a.lat * rad) * R * rad; const y = p.lat * R * rad; const x1 = a.lng * Math.cos(a.lat * rad) * R * rad; const y1 = a.lat * R * rad; const x2 = b.lng * Math.cos(a.lat * rad) * R * rad; const y2 = b.lat * R * rad; const A = x - x1; const B = y - y1; const C = x2 - x1; const D = y2 - y1; let dot = A * C + B * D; let len_sq = C * C + D * D; let param = -1; if (len_sq !== 0) param = dot / len_sq; let xx, yy; if (param < 0) { xx = x1; yy = y1; } else if (param > 1) { xx = x2; yy = y2; } else { xx = x1 + param * C; yy = y1 + param * D; } const dx = x - xx; const dy = y - yy; return Math.sqrt(dx * dx + dy * dy); };
-
 DiscomApp.CRUD.saveNewPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const poleNo = document.getElementById('inpPoleNo').value.trim(), pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value, pConf = document.getElementById('inpPccConfig').value;
@@ -42,10 +38,8 @@ DiscomApp.CRUD.saveNewPole = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'HT', poleType: pType, condition: pCond, poleConfig: pConf, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.poles.push(newObj); 
-    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; 
-    DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
+    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
     return true;
 };
 
@@ -58,10 +52,8 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'LT', dtCode: dtCodeClean, poleType: pType, condition: pCond, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.poles.push(newObj); 
-    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; 
-    DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
+    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('POLE', newObj);
     return true;
 };
 
@@ -73,18 +65,15 @@ DiscomApp.CRUD.saveNewLine = function() {
     if((net.lines||[]).some(l => (l.fromNode === fNode && l.toNode === tNode) || (l.fromNode === tNode && l.toNode === fNode))) { alert("This line route already exists!"); return false; }
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode };
-    net.lines.push(newObj);
-    DiscomApp.UI.showToast("⏳ Checking topology...");
+    net.lines.push(newObj); DiscomApp.UI.showToast("⏳ Checking topology...");
     const isLT = type && type.includes('LT');
     window.networkValidatorWorker.postMessage({ lines: net.lines, poles: net.poles, dts: net.dts, gssNodes: DiscomApp.State.gssNodes, feeder: net.feeder, networkType: isLT ? 'LT' : 'HT' });
     window.networkValidatorWorker.onmessage = function(e) {
-        const result = e.data;
-        if (result.hasLoop) { net.lines.pop(); alert(result.message); } 
+        if (e.data.hasLoop) { net.lines.pop(); alert(e.data.message); } 
         else {
             if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
             DiscomApp.UI.showToast("✅ Line saved successfully!");
-            DiscomApp.Map.renderEntireNetwork(); 
-            DiscomApp.DB.triggerPersistence();
+            DiscomApp.Map.renderEntireNetwork(); DiscomApp.DB.triggerPersistence();
         }
     };
     return true;
@@ -100,8 +89,7 @@ DiscomApp.CRUD.saveNewDT = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'DT_' + Date.now(), code: code, parentPole: parent.replace('POLE_','').replace('GSS_',''), mountedOn: mountedOn, phase: phase, rating: rating, location: loc, lat: lat, lng: lng };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.dts.push(newObj); DiscomApp.State.placementType = null; 
-    DiscomApp.Map.addSingleObjectToMap('DT', newObj);
+    net.dts.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('DT', newObj);
     return true;
 };
 
@@ -113,8 +101,7 @@ DiscomApp.CRUD.saveNewConsumer = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value) };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.consumers.push(newObj); DiscomApp.State.placementType = null; 
-    DiscomApp.Map.addSingleObjectToMap('CONSUMER', newObj);
+    net.consumers.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('CONSUMER', newObj);
     return true;
 };
 
