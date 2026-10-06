@@ -1,5 +1,23 @@
 /* --- js/4_ui_forms.js --- */
 
+// --- LOGIN / SIGNUP UI LOGIC (MISSING FUNCTIONS FIX) ---
+DiscomApp.UI.toggleAuthMode = function() { 
+    authMode = authMode === 'login' ? 'signup' : 'login'; 
+    document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
+    document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; 
+    document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; 
+    document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
+};
+
+DiscomApp.UI.applyAuthUIVisuals = function() { 
+    document.getElementById('auth-screen').style.display = 'none'; 
+    document.getElementById('app-container').style.display = 'flex'; 
+    setTimeout(() => { if(map) map.invalidateSize(); }, 100); 
+    const uName = document.getElementById('userNameDisplay');
+    if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
+};
+// --------------------------------------------------------
+
 DiscomApp.UI.applyTranslations = function() {
     const lang = DiscomApp.State.settings.language || 'en';
     document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(i18n[lang] && i18n[lang][key]) { if(el.tagName === 'INPUT' && el.type === 'text') el.placeholder = i18n[lang][key]; else el.innerHTML = i18n[lang][key]; } });
