@@ -112,7 +112,24 @@
     <div id="full-photo-viewer" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:99999999;"><button onclick="DiscomApp.UI.closeFullScreenPhoto()" style="position:absolute; top:30px; right:30px;"><i class="fa-solid fa-times"></i></button><img id="full-photo-img" style="max-width:95%; max-height:90%;"></div>
     <div class="modal-overlay" id="formModalOverlay"><div class="modal-sheet" id="modalSheetContent"></div></div>
 
-    <div id="settings-page"><div class="settings-header"><button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button><h2>Settings</h2></div><div class="settings-body"><div class="settings-card"><div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option></select><label>Language</label></div><div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option></select><label>Unit</label></div></div></div></div>
+    <div id="settings-page">
+    <div class="settings-header">
+        <button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button>
+        <h2 style="font-size:1.2rem; font-weight:800;">Settings</h2>
+    </div>
+    <div class="settings-body">
+        <div class="settings-card">
+            <div class="form-row"><select id="setLanguage" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="en">English</option><option value="hi">हिंदी (Hindi)</option></select><label>Language</label></div>
+            <div class="form-row"><select id="setUnit" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="m">Meters (M)</option><option value="km">Kilometers (KM)</option></select><label>Distance Unit</label></div>
+            <div class="form-row" style="margin-bottom:0;"><select id="setTheme" class="form-select" onchange="DiscomApp.UI.autoSaveSettings()"><option value="light">Light Mode</option><option value="dark">Dark Mode</option></select><label>Theme</label></div>
+        </div>
+        <div class="settings-card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div><h3 style="font-size:0.9rem; font-weight:700;">Live Cloud Sync</h3><p style="font-size:0.75rem; color:var(--text-sub);">Auto-save to Supabase</p></div>
+            <label class="switch"><input type="checkbox" id="setLiveSync" onchange="DiscomApp.UI.autoSaveSettings()"><span class="slider round"></span></label>
+        </div>
+    </div>
+</div>
+
     
     <div id="app-toast"><i class="fa-solid fa-circle-info"></i> <span id="toast-msg">Success!</span></div>
 
