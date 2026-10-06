@@ -13,57 +13,31 @@ DiscomApp.Main.requestAppPermissions = function() {
     } else { document.getElementById('permission-overlay').style.display = 'none'; DiscomApp.Main.initializeAppPostPermissions(); }
 }
 
-/* --- js/7_main.js में रिप्लेस करें --- */
 DiscomApp.Main.initializeAppPostPermissions = async function() {
     try {
         DiscomApp.Map.initMapLayers();
         if (typeof supabase !== 'undefined') supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        
-        let data = null; 
-        if (typeof localforage !== 'undefined') data = await localforage.getItem(DB_KEY); 
+        let data = null; if (typeof localforage !== 'undefined') data = await localforage.getItem(DB_KEY); 
         if (!data) { const lsData = localStorage.getItem(DB_KEY); if (lsData) data = JSON.parse(lsData); }
+        if (data && data.feeders) { DiscomApp.State = data; } // Restore State
         
-        if (data && data.feeders) { 
-            DiscomApp.State = data; 
-            // FIX: Immediately update the Feeder UI so "Loading..." disappears
-            DiscomApp.UI.updateFeederDropdown(); 
-        } 
-        
-        DiscomApp.UI.applyTranslations(); 
-        DiscomApp.UI.applyTheme();
+        DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme();
         
         if (DiscomApp.State.user && DiscomApp.State.user.isLoggedIn) { 
-            DiscomApp.UI.applyAuthUIVisuals(); 
-            setTimeout(() => { 
-                if(map) map.invalidateSize(); 
-                DiscomApp.Map.renderEntireNetwork(); 
-                DiscomApp.Map.centerMapOnGSS(); 
-                DiscomApp.UI.checkOnboardingFlow(); 
-                DiscomApp.DB.updateUnsyncedBadge(); 
-            }, 300); // Increased timeout to ensure Map div is ready
-        } else { 
-            document.getElementById('app-container').style.display = 'none'; 
-            document.getElementById('auth-screen').style.display = 'flex'; 
-        }
+            DiscomApp.UI.applyAuthUIVisuals(); setTimeout(() => { if(map) map.invalidateSize(); DiscomApp.Map.renderEntireNetwork(); DiscomApp.Map.centerMapOnGSS(); DiscomApp.UI.checkOnboardingFlow(); DiscomApp.DB.updateUnsyncedBadge(); }, 100);
+        } else { document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; }
         
         if (supabaseClient) {
             supabaseClient.auth.getSession().then(({ data }) => {
                 if (data && data.session && data.session.user) {
                     DiscomApp.State.user.isLoggedIn = true; DiscomApp.State.user.email = data.session.user.email; DiscomApp.State.user.id = data.session.user.id;
                     DiscomApp.State.user.name = data.session.user.user_metadata?.full_name || data.session.user.email.split('@')[0];
-                    DiscomApp.UI.applyAuthUIVisuals(); 
-                    DiscomApp.DB.pullFromSupabase(); 
+                    DiscomApp.UI.applyAuthUIVisuals(); DiscomApp.DB.pullFromSupabase(); 
                 }
             }).catch(err => console.log("Offline mode"));
         }
-    } catch (e) { 
-        console.error("Init Error:", e); 
-        document.getElementById('app-container').style.display = 'none'; 
-        document.getElementById('auth-screen').style.display = 'flex'; 
-        DiscomApp.UI.showToast("Offline Mode / Load Error"); 
-    }
-};
-
+    } catch (e) { console.error("Init Error:", e); document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; DiscomApp.UI.showToast("Offline Mode / Load Error"); }
+}
 
 DiscomApp.Main.startAppStartupSequence = function() {
     setTimeout(() => {
