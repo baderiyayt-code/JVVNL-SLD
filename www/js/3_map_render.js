@@ -1,4 +1,5 @@
 /* --- js/3_map_render.js --- */
+
 DiscomApp.Map.calcDistance = function(lat1, lon1, lat2, lon2) { const R = 6371e3, p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180, dp = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 DiscomApp.Map.formatDistance = function(m) { return (DiscomApp.State.settings.unit === 'km') ? (m / 1000).toFixed(3) + ' KM' : m.toFixed(1) + ' M'; }
 DiscomApp.Map.sortByDistance = function(nodes, lat, lng) { return (nodes||[]).slice().sort((a, b) => DiscomApp.Map.calcDistance(lat, lng, a.lat, a.lng) - DiscomApp.Map.calcDistance(lat, lng, b.lat, b.lng)); }
@@ -26,6 +27,17 @@ DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
     
+    // NAYA CODE: TOWER/RAIL POLE ZOOM OUT FIX Ke Liye Dynamic Styles
+    if(!document.getElementById('zoom-fix-styles')) {
+        const s = document.createElement('style'); 
+        s.id = 'zoom-fix-styles';
+        s.innerHTML = `
+            #map.hide-lt-poles .lt-pole-marker { display: none !important; visibility: hidden !important; pointer-events: none !important; }
+            #map.hide-ht-poles .ht-pole-marker { display: none !important; visibility: hidden !important; pointer-events: none !important; }
+        `;
+        document.head.appendChild(s);
+    }
+
     map = L.map('map', { 
         zoomControl: false, attributionControl: false, preferCanvas: true,
         rotate: true, touchRotate: true, shiftKeyRotate: true, bearing: 0 
@@ -65,16 +77,10 @@ DiscomApp.Map.initMapLayers = function() {
 
 DiscomApp.Map.setupFeatureGroups = function() {
     if(!map) return;
-    if(featureGroups.gss) {
-        Object.values(featureGroups).forEach(g => { if(map.hasLayer(g)) map.removeLayer(g); });
-    }
+    if(featureGroups.gss) { Object.values(featureGroups).forEach(g => { if(map.hasLayer(g)) map.removeLayer(g); }); }
     const useCluster = DiscomApp.State.settings.markerCluster !== false && typeof L.markerClusterGroup !== 'undefined';
-    
     featureGroups = { 
-        gss: L.featureGroup().addTo(map), 
-        lines: L.featureGroup().addTo(map), 
-        consumerLines: L.featureGroup().addTo(map), 
-        dts: L.featureGroup().addTo(map), 
+        gss: L.featureGroup().addTo(map), lines: L.featureGroup().addTo(map), consumerLines: L.featureGroup().addTo(map), dts: L.featureGroup().addTo(map), 
         poles: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), 
         consumers: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 19, maxClusterRadius: 40 }).addTo(map) : L.featureGroup().addTo(map) 
     };
@@ -97,22 +103,16 @@ DiscomApp.Map.centerMapOnGSS = function() {
 DiscomApp.Map.centerMapOnLastObjectOrGSS = function() {
     if(!map) return;
     setTimeout(() => {
-        map.invalidateSize();
-        const net = DiscomApp.State.getActiveNetwork();
+        map.invalidateSize(); const net = DiscomApp.State.getActiveNetwork();
         let latestObj = null; let latestTime = 0;
         if (net) {
             const allObjs = [...(net.poles || []), ...(net.dts || []), ...(net.consumers || [])];
-            allObjs.forEach(o => {
-                const t = o.updatedAt || parseInt(o.id.split('_')[1]) || 0;
-                if (t > latestTime) { latestTime = t; latestObj = o; }
-            });
+            allObjs.forEach(o => { const t = o.updatedAt || parseInt(o.id.split('_')[1]) || 0; if (t > latestTime) { latestTime = t; latestObj = o; } });
         }
         if (latestObj && !isNaN(latestObj.lat)) {
             map.flyTo([latestObj.lat, latestObj.lng], 19, { animate: true, duration: 1 });
             if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("📍 Zoomed to last modified object");
-        } else {
-            DiscomApp.Map.centerMapOnGSS();
-        }
+        } else { DiscomApp.Map.centerMapOnGSS(); }
     }, 400);
 };
 
@@ -134,10 +134,7 @@ DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
             const numRating = String(d.rating).replace(/[^0-9]/g, ''); 
             let startX = cx;
             if (total === 2) { startX = idx === 0 ? cx - 18 : cx + 18; } 
-            else if (total >= 3) {
-                const spacing = 24; const offset = -((total - 1) * spacing) / 2;
-                startX = cx + offset + (idx * spacing);
-            }
+            else if (total >= 3) { const spacing = 24; const offset = -((total - 1) * spacing) / 2; startX = cx + offset + (idx * spacing); }
             if(d.phase === 'Single Phase') {
                 dtSvgs += `<g transform="translate(${startX - 13}, 65)" onclick="DiscomApp.UI.openDTFromSVG(event, '${d.id}')" style="cursor:pointer;"><rect x="0" y="0" width="26" height="30" rx="2" fill="${fillC}" stroke="#0f172a" stroke-width="2"/><rect x="3" y="3" width="20" height="24" fill="#fdba74"/><polygon points="10,0 16,0 13,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><rect x="11" y="-9" width="4" height="2" fill="#94a3b8"/><text x="13" y="19" font-size="13" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></g>`;
             } else {
@@ -154,7 +151,6 @@ DiscomApp.Map.getDTSVG = function(phase, rating) {
     return `<svg viewBox="0 0 60 70" style="width:34px;height:40px; filter:drop-shadow(0 5px 8px rgba(0,0,0,0.7));"><rect x="15" y="20" width="30" height="40" rx="3" fill="${lightOrange}" stroke="#0f172a" stroke-width="2"/><rect x="8" y="25" width="7" height="30" fill="${darkOrange}" rx="1"/><rect x="5" y="28" width="7" height="24" fill="#c2410c" rx="1"/><rect x="45" y="25" width="7" height="30" fill="${darkOrange}" rx="1"/><rect x="48" y="28" width="7" height="24" fill="#c2410c" rx="1"/><polygon points="18,20 22,20 20,5" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="28,20 32,20 30,5" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="38,20 42,20 40,5" fill="#78350f" stroke="#0f172a" stroke-width="1"/><text x="30" y="45" font-size="12" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></svg>`;
 };
 
-// FIX: Reduced Consumer Icon size to 26px so it looks proportional
 DiscomApp.Map.getConsumerSVG = function(cType, status) {
     let bgColor = '#10b981'; if(status === 'DC') bgColor = '#facc15'; else if(status === 'PDC') bgColor = '#ef4444'; 
     const t = (cType || 'Domestic').toLowerCase(); let innerSvg = '';
@@ -163,7 +159,6 @@ DiscomApp.Map.getConsumerSVG = function(cType, status) {
     else if (t.includes('sip') || t.includes('mip') || t.includes('indus')) innerSvg = `<rect x="25" y="50" width="50" height="35" fill="#ffffff"/><polygon points="35,50 35,35 45,35 45,50" fill="#ffffff"/><rect x="60" y="40" width="8" height="15" fill="#ffffff"/><path d="M 35 30 L 40 22 L 45 30" fill="none" stroke="#ffffff" stroke-width="4"/>`; 
     else if (t.includes('govt')) innerSvg = `<rect x="25" y="75" width="50" height="10" fill="#ffffff"/><polygon points="50,25 20,40 80,40" fill="#ffffff"/><rect x="30" y="45" width="6" height="30" fill="#ffffff"/><rect x="42" y="45" width="6" height="30" fill="#ffffff"/><rect x="54" y="45" width="6" height="30" fill="#ffffff"/><rect x="66" y="45" width="6" height="30" fill="#ffffff"/>`; 
     else innerSvg = `<path d="M 20 50 L 50 20 L 80 50 L 70 50 L 70 85 L 30 85 L 30 50 Z" fill="#ffffff"/><rect x="42" y="60" width="16" height="25" fill="${bgColor}"/><rect x="35" y="40" width="10" height="12" fill="#e0f2fe"/><rect x="55" y="40" width="10" height="12" fill="#e0f2fe"/>`;
-    
     return `<div style="position:relative; width:26px; height:26px; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));"><svg viewBox="0 0 100 100" width="100%" height="100%"><circle cx="50" cy="50" r="46" fill="${bgColor}" stroke="#ffffff" stroke-width="6"/>${innerSvg}</svg></div>`;
 };
 
@@ -195,7 +190,11 @@ DiscomApp.Map.addSingleObjectToMap = function(type, obj) {
     if (type === 'POLE' || type === 'LTPOLE') {
         const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(obj.id) : false;
         let associatedDTs = []; const net = DiscomApp.State.getActiveNetwork(); if(net && net.dts) associatedDTs = net.dts.filter(d => String(d.parentPole) === String(obj.poleNo));
-        const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(obj, associatedDTs, isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
+        
+        // FIX: HIDING LOGIC KE LIYE CUSTOM CLASS APPLY KI HAI YAHAN
+        const markerClass = obj.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
+        
+        const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(obj, associatedDTs, isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
         m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', obj.id, `Pole ${obj.poleNo}`, `Type: <b>${obj.lineType || 'HT'}</b><br>Config: <b>${obj.poleType || 'Standard'}</b>`); }); 
         if(featureGroups.poles) featureGroups.poles.addLayer(m);
     } else if (type === 'DT') {
@@ -228,7 +227,11 @@ DiscomApp.Map.renderEntireNetwork = function() {
             net.poles.forEach(p => {
                 if(!p || isNaN(p.lat) || isNaN(p.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === p.id)) return; 
                 const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(p.id) : false;
-                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
+                
+                // FIX: HIDING LOGIC KE LIYE CUSTOM CLASS APPLY KI HAI YAHAN
+                const markerClass = p.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
+                
+                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType || 'HT'}</b><br>Config: <b>${p.poleType || 'Standard'}</b><br>Condition: <b>${p.condition||'Good'}</b>`); }); featureGroups.poles.addLayer(m);
             });
         }
@@ -264,17 +267,12 @@ DiscomApp.Map.renderEntireNetwork = function() {
         if (f.consumers && net.consumers) {
             net.consumers.forEach(c => {
                 if (!c || isNaN(c.lat) || isNaN(c.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === c.id)) return; 
-                
-                // FIX: Store the offset coords so the dotted line can connect exactly to the marker
                 const renderLat = c.lat + (Math.random() - 0.5)*0.00003;
                 const renderLng = c.lng + (Math.random() - 0.5)*0.00003;
-                
                 const m = L.marker([renderLat, renderLng], { icon: L.divIcon({ className: 'consumer-marker-icon', html: DiscomApp.Map.getConsumerSVG(c.cType, c.status), iconSize: [26,26], iconAnchor: [13, 13] }), zIndexOffset: 100 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('CONSUMER', c.id, c.name, `Type: <b>${c.cType||'Domestic'}</b><br>Status: <b>${c.status||'Regular'}</b><br>K-No: <b>${c.kno}</b><br>Load: <b>${c.load||'N/A'}</b>`); }); 
                 featureGroups.consumers.addLayer(m);
-                
                 let parentStr = c.parentType === 'DT' ? `DT_${c.parentRef}` : `POLE_${c.parentRef}`; const pCoords = DiscomApp.Map.getNodeCoords(parentStr);
-                // FIX: Line now uses renderLat and renderLng so it matches the icon perfectly
                 if (pCoords && !isNaN(pCoords.lat)) L.polyline([[renderLat, renderLng], [pCoords.lat, pCoords.lng]], { color: '#000000', weight: 1.5, dashArray: '3, 5', interactive: false, className: 'consumer-line-path' }).addTo(featureGroups.consumerLines);
             });
         }
