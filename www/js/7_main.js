@@ -46,7 +46,7 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
-                if(DiscomApp.Map.centerMapOnGSS) DiscomApp.Map.centerMapOnGSS(); 
+                if(DiscomApp.Map.centerMapOnLastObjectOrGSS) DiscomApp.Map.centerMapOnLastObjectOrGSS();
                 if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
                 if(DiscomApp.DB.updateUnsyncedBadge) DiscomApp.DB.updateUnsyncedBadge(); 
             }, 300); 
