@@ -1,6 +1,5 @@
 /* --- js/5_crud_actions.js --- */
 
-// 1. Math Function for Magic Pole (Distance Calculation)
 DiscomApp.Map.getPointToSegmentDetails = function(p, a, b) {
     const R = 6371000; const rad = Math.PI / 180;
     const px = p.lng * Math.cos(a.lat * rad) * R * rad; const py = p.lat * R * rad;
@@ -19,13 +18,11 @@ DiscomApp.Map.getPointToSegmentDetails = function(p, a, b) {
     return { distance: Math.sqrt(dx * dx + dy * dy), isBetween: isBetween };
 };
 
-// 2. Magic Pole Logic
 DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     try {
         if(!net || !net.lines || !net.poles) return;
         let closestLineIndex = -1, matchedLine = null, minDistance = Infinity;
         const isLT = (newPole.lineType === 'LT');
-        // FIX: Increased touch tolerance to 5 meters so it catches the line easily
         const maxAllowedDist = 5.0; 
 
         for (let i = 0; i < net.lines.length; i++) {
@@ -64,12 +61,9 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
                 if(DiscomApp.UI.showToast) DiscomApp.UI.showToast(`✨ Magic ${isLT ? 'LT' : 'HT'} Pole Split! (${minDistance.toFixed(1)}m)`);
             }
         }
-    } catch (err) {
-        console.error("Magic Split Logic Error:", err);
-    }
+    } catch (err) { console.error("Magic Split Logic Error:", err); }
 };
 
-// 3. Saving Add & Edit Data
 DiscomApp.CRUD.saveNewPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const poleNo = document.getElementById('inpPoleNo').value.trim(), pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value, pConf = document.getElementById('inpPccConfig').value;
@@ -80,10 +74,8 @@ DiscomApp.CRUD.saveNewPole = function() {
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'HT', poleType: pType, condition: pCond, poleConfig: pConf, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
     
-    net.poles.push(newObj); 
-    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; 
-    return true;
+    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; return true;
 };
 
 DiscomApp.CRUD.saveNewLTPole = function() {
@@ -103,10 +95,8 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'LT', dtCode: dtCodeClean, poleType: pType, condition: pCond, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
     
-    net.poles.push(newObj); 
-    DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
-    DiscomApp.State.placementType = null; 
-    return true;
+    net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
+    DiscomApp.State.placementType = null; return true;
 };
 
 window.networkValidatorWorker = new Worker('js/loop_worker.js');
@@ -149,8 +139,7 @@ DiscomApp.CRUD.saveNewDT = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'DT_' + Date.now(), code: code, parentPole: parent.replace('POLE_','').replace('GSS_',''), mountedOn: mountedOn, phase: phase, rating: rating, location: loc, lat: lat, lng: lng, synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.dts.push(newObj); DiscomApp.State.placementType = null; 
-    return true;
+    net.dts.push(newObj); DiscomApp.State.placementType = null; return true;
 };
 
 DiscomApp.CRUD.saveNewConsumer = function() {
@@ -161,8 +150,7 @@ DiscomApp.CRUD.saveNewConsumer = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.consumers.push(newObj); DiscomApp.State.placementType = null; 
-    return true;
+    net.consumers.push(newObj); DiscomApp.State.placementType = null; return true;
 };
 
 DiscomApp.CRUD.saveEditedGss = function(code) { const gss = DiscomApp.State.gssNodes[code]; if(!gss) return false; const newName = document.getElementById('editGssName').value.trim(); if(!newName) { alert("Name is required"); return false; } DiscomApp.State.saveSnapshot(); gss.name = newName; gss.updatedAt = Date.now(); gss.synced = false; return true; };
@@ -213,18 +201,48 @@ DiscomApp.CRUD.startObjectMove = function(type, id, title) {
 
 DiscomApp.CRUD.cancelMove = function() { DiscomApp.State.activeMove = null; document.getElementById('center-placement-pin').style.display = 'none'; document.getElementById('move-confirm-bar').style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; DiscomApp.Map.renderEntireNetwork(); };
 
+// FIX: DT Location synced correctly along with Pole Location Move
 DiscomApp.CRUD.confirmMove = function() { 
     if(!DiscomApp.State.activeMove) return; 
     const center = map.getCenter(); const net = DiscomApp.State.getActiveNetwork(); DiscomApp.State.saveSnapshot(); 
     const id = DiscomApp.State.activeMove.id; let isUpdated = false;
-    if(DiscomApp.State.gssNodes && DiscomApp.State.gssNodes[id]) { DiscomApp.State.gssNodes[id].lat = parseFloat(center.lat.toFixed(6)); DiscomApp.State.gssNodes[id].lng = parseFloat(center.lng.toFixed(6)); DiscomApp.State.gssNodes[id].updatedAt = Date.now(); DiscomApp.State.gssNodes[id].synced = false; isUpdated = true; } 
+    const newLat = parseFloat(center.lat.toFixed(6));
+    const newLng = parseFloat(center.lng.toFixed(6));
+
+    if(DiscomApp.State.gssNodes && DiscomApp.State.gssNodes[id]) { 
+        DiscomApp.State.gssNodes[id].lat = newLat; 
+        DiscomApp.State.gssNodes[id].lng = newLng; 
+        DiscomApp.State.gssNodes[id].updatedAt = Date.now(); 
+        DiscomApp.State.gssNodes[id].synced = false; 
+        isUpdated = true; 
+    } 
     if (net && !isUpdated) {
         const arraysToCheck = ['poles', 'dts', 'consumers'];
         for (let arrName of arraysToCheck) {
             let targetObj = (net[arrName] || []).find(x => x.id === id);
-            if (targetObj) { targetObj.lat = parseFloat(center.lat.toFixed(6)); targetObj.lng = parseFloat(center.lng.toFixed(6)); targetObj.updatedAt = Date.now(); targetObj.synced = false; isUpdated = true; break; }
+            if (targetObj) { 
+                targetObj.lat = newLat; 
+                targetObj.lng = newLng; 
+                targetObj.updatedAt = Date.now(); 
+                targetObj.synced = false; 
+                isUpdated = true; 
+                
+                // NAYA CODE: Agar pole move ho raha hai, toh uspe bandhi hui DT bhi sath move kardo
+                if (arrName === 'poles') {
+                    (net.dts || []).forEach(dt => {
+                        if (String(dt.parentPole) === String(targetObj.poleNo)) {
+                            dt.lat = newLat; 
+                            dt.lng = newLng;
+                            dt.updatedAt = Date.now(); 
+                            dt.synced = false;
+                        }
+                    });
+                }
+                break; 
+            }
         }
     }
     DiscomApp.CRUD.cancelMove(); 
-    if(isUpdated) { DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Location Updated & Synced to Cloud!"); } else { DiscomApp.UI.showToast("Error: Object not found to move."); }
+    if(isUpdated) { DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Location Updated & Synced!"); } 
+    else { DiscomApp.UI.showToast("Error: Object not found to move."); }
 };
