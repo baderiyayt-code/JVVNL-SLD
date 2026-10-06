@@ -66,7 +66,24 @@ DiscomApp.Map.updateMapZoomClasses = function() {
     document.documentElement.style.setProperty('--icon-scale', scale);
 }
 DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
-DiscomApp.Map.centerMapOnGSS = function() { if(!map) return; map.invalidateSize(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) map.setView([gss.lat, gss.lng], 16, {animate: false}); };
+/* --- js/3_map_render.js में रिप्लेस करें --- */
+DiscomApp.Map.centerMapOnGSS = function() { 
+    if(!map) return; 
+    
+    // FIX: Timeout added so map renders properly before zooming
+    setTimeout(() => {
+        map.invalidateSize(); 
+        const net = DiscomApp.State.getActiveNetwork(); 
+        if(!net) return; 
+        const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; 
+        
+        if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) {
+            // FIX: Using flyTo instead of setView for a smooth forced zoom
+            map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); 
+        }
+    }, 400); 
+};
+
 
 DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
     const strokeC = isOrphan ? '#ef4444' : '#475569', fillC = isOrphan ? '#fca5a5' : '#fb923c'; 
