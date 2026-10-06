@@ -13,6 +13,7 @@ DiscomApp.Main.requestAppPermissions = function() {
     } else { document.getElementById('permission-overlay').style.display = 'none'; DiscomApp.Main.initializeAppPostPermissions(); }
 }
 
+
 DiscomApp.Main.initializeAppPostPermissions = async function() {
     try {
         DiscomApp.Map.initMapLayers();
@@ -23,9 +24,9 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         if (!data) { const lsData = localStorage.getItem(DB_KEY); if (lsData) data = JSON.parse(lsData); }
         
         if (data && data.feeders) { 
-            // FIX: Object.assign का इस्तेमाल करें ताकि फंक्शन्स डिलीट न हों!
             Object.assign(DiscomApp.State, data);
-            
+            // FIX: Reset orphanPoleIds to a fresh Set on load to prevent crashes
+            DiscomApp.State.orphanPoleIds = new Set(); 
             if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         } 
         
@@ -34,7 +35,6 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         
         if (DiscomApp.State.user && DiscomApp.State.user.isLoggedIn) { 
             if(DiscomApp.UI.applyAuthUIVisuals) DiscomApp.UI.applyAuthUIVisuals(); 
-            
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
@@ -59,11 +59,11 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         }
     } catch (e) { 
         console.error("Init Error:", e); 
-        document.getElementById('app-container').style.display = 'none'; 
-        document.getElementById('auth-screen').style.display = 'flex'; 
+        document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; 
         if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Offline Mode / Load Error"); 
     }
 };
+
 
 DiscomApp.Main.startAppStartupSequence = function() {
     setTimeout(() => {
