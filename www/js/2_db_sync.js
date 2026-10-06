@@ -1,3 +1,4 @@
+/* --- js/2_db_sync.js --- */
 window.toggleAuthMode = function() { 
     authMode = authMode === 'login' ? 'signup' : 'login'; 
     document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
@@ -19,10 +20,8 @@ window.handleSupabaseAuth = async function(mode) {
     const email = document.getElementById('authEmail').value.trim();
     const password = document.getElementById('authPassword').value.trim();
     const name = document.getElementById('authName').value.trim();
-    
     if(!email || !password) return alert("Email aur Password bharna zaroori hai!"); 
     window.showToast("Processing..."); 
-    
     try {
         let response;
         if (mode === 'signup') { 
@@ -34,13 +33,9 @@ window.handleSupabaseAuth = async function(mode) {
             response = await supabaseClient.auth.signInWithPassword({ email, password }); 
             if (response.error) { alert("Login Error: " + response.error.message); } 
             else if (response.data.user) { 
-                appState.user.isLoggedIn = true; 
-                appState.user.email = response.data.user.email; 
-                appState.user.id = response.data.user.id; 
+                appState.user.isLoggedIn = true; appState.user.email = response.data.user.email; appState.user.id = response.data.user.id; 
                 appState.user.name = response.data.user.user_metadata?.full_name || email.split('@')[0]; 
-                window.applyAuthUIVisuals(); 
-                await window.pullFromSupabase(); 
-                window.showToast("Login Successful!"); 
+                window.applyAuthUIVisuals(); await window.pullFromSupabase(); window.showToast("Login Successful!"); 
             }
         }
     } catch(err) { console.error("Auth Exception:", err); alert("Connection error: " + err.message); }
@@ -84,160 +79,60 @@ window.syncToSupabase = async function() {
             for (let i = 0; i < objectsPayload.length; i += 200) await supabaseClient.from('survey_objects').upsert(objectsPayload.slice(i, i + 200), { onConflict: 'id' });
             for (let fCode in appState.feeders) { appState.feeders[fCode].poles.forEach(p => p.synced = true); appState.feeders[fCode].dts.forEach(d => d.synced = true); appState.feeders[fCode].lines.forEach(l => l.synced = true); appState.feeders[fCode].consumers.forEach(c => c.synced = true); }
         }
-        if (appState.photos && appState.photos.length > 0) {
-            const unsyncedPhotos = appState.photos.filter(p => !p.synced);
-            if (unsyncedPhotos.length > 0) {
-                const photoPayload = unsyncedPhotos.map(p => ({ id: p.id, user_id: appState.user.id, object_type: p.object_type, object_id: p.object_id, photo_url: p.photo_url }));
-                for(let i=0; i<photoPayload.length; i+=5) await supabaseClient.from('object_photos').upsert(photoPayload.slice(i, i+5), { onConflict: 'id' });
-                unsyncedPhotos.forEach(p => p.synced = true); 
-            }
-        }
         if(typeof localforage !== 'undefined') localforage.setItem(DB_KEY, appState); window.setSyncStatus('synced'); window.updateUnsyncedBadge();
     } catch (err) { console.warn("Sync error", err); window.setSyncStatus('offline'); window.updateUnsyncedBadge(); }
 }
 
 window.pullFromSupabase = async function() {
-    if (!supabaseClient || !appState.user.isLoggedIn || !appState.user.id) return; 
-    window.setSyncStatus('syncing');
-    
+    if (!supabaseClient || !appState.user.isLoggedIn || !appState.user.id) return; window.setSyncStatus('syncing');
     try {
-        // 1. Fetch Meta Data (Settings, GSS, etc.)
         const { data: metaData } = await supabaseClient.from('survey_data').select('data').eq('user_id', appState.user.id);
-        if(metaData && metaData.length > 0) { 
-            const cd = metaData[0].data; 
-            appState.gssNodes = cd.gssNodes || {}; 
-            appState.settings = { ...appState.settings, ...(cd.settings || {}) }; 
-            appState.filters = cd.filters || appState.filters; 
-            appState.currentFeederCode = cd.currentFeederCode || null; 
-        }
-
-        // 2. Fetch Feeders
-        const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', appState.user.id); 
-        if (!appState.feeders) appState.feeders = {};
-        if(feedersData) { 
-            feedersData.forEach(f => { 
-                if (!appState.feeders[f.code]) {
-                    appState.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; 
-                }
-            }); 
-        }
-
-        // 3. Fetch Objects with SMART TIMESTAMP MERGE
-        const { data: objData } = await supabaseClient.from('survey_objects').select('*').eq('user_id', appState.user.id);
+        if(metaData && metaData.length > 0) { const cd = metaData[0].data; appState.gssNodes = cd.gssNodes || {}; appState.settings = { ...appState.settings, ...(cd.settings || {}) }; appState.filters = cd.filters || appState.filters; appState.currentFeederCode = cd.currentFeederCode || null; }
+        const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', appState.user.id); if(!appState.feeders) appState.feeders = {};
+        if(feedersData) { feedersData.forEach(f => { if(!appState.feeders[f.code]) appState.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; }); }
         
+        const { data: objData } = await supabaseClient.from('survey_objects').select('*').eq('user_id', appState.user.id);
         if(objData) { 
             objData.forEach(row => { 
                 const fCode = row.feeder_code; 
                 if(appState.feeders[fCode]) { 
-                    const type = row.object_type;
-                    let targetArray = null;
-                    
-                    if(type === 'POLE') targetArray = appState.feeders[fCode].poles;
-                    else if(type === 'DT') targetArray = appState.feeders[fCode].dts;
-                    else if(type === 'LINE') targetArray = appState.feeders[fCode].lines;
-                    else if(type === 'CONSUMER') targetArray = appState.feeders[fCode].consumers;
-
+                    const type = row.object_type; let targetArray = null;
+                    if(type === 'POLE') targetArray = appState.feeders[fCode].poles; else if(type === 'DT') targetArray = appState.feeders[fCode].dts; else if(type === 'LINE') targetArray = appState.feeders[fCode].lines; else if(type === 'CONSUMER') targetArray = appState.feeders[fCode].consumers;
                     if (targetArray) {
                         const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
-                        
                         if (existingObjIndex > -1) {
-                            const existingObj = targetArray[existingObjIndex];
-                            
-                            // Conflict Resolution: Check who has the latest data
-                            const cloudTime = row.details.updatedAt || 0;
-                            const localTime = existingObj.updatedAt || 0;
-                            
-                            if (cloudTime > localTime) {
-                                // Cloud has newer data -> Overwrite local
-                                row.details.synced = true;
-                                targetArray[existingObjIndex] = row.details; 
-                            } else if (localTime > cloudTime) {
-                                // Local has newer data -> Keep local, flag for push
-                                existingObj.synced = false; 
-                            } else {
-                                // Both are same -> Just mark as synced
-                                existingObj.synced = true;
-                            }
-                        } else {
-                            // New object from cloud -> Add to local
-                            row.details.synced = true;
-                            targetArray.push(row.details);
-                        }
+                            const cloudTime = row.details.updatedAt || 0, localTime = targetArray[existingObjIndex].updatedAt || 0;
+                            if (cloudTime > localTime) { row.details.synced = true; targetArray[existingObjIndex] = row.details; } 
+                            else if (localTime > cloudTime) { targetArray[existingObjIndex].synced = false; } 
+                            else { targetArray[existingObjIndex].synced = true; }
+                        } else { row.details.synced = true; targetArray.push(row.details); }
                     }
                 } 
             }); 
         }
+        if(typeof localforage !== 'undefined') await localforage.setItem(DB_KEY, appState); else localStorage.setItem(DB_KEY, JSON.stringify(appState));
+        if(window.applyTranslations) window.applyTranslations(); if(window.applyTheme) window.applyTheme(); if(map) map.invalidateSize(); if(window.renderEntireNetwork) window.renderEntireNetwork(); if(window.updateFeederDropdown) window.updateFeederDropdown(); window.setSyncStatus('synced'); if(window.centerMapOnGSS) window.centerMapOnGSS(); if(window.checkOnboardingFlow) window.checkOnboardingFlow(); if(window.updateUnsyncedBadge) window.updateUnsyncedBadge();
+    } catch (err) { console.error("Sync pull error:", err); window.setSyncStatus('offline'); if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); }
+}
 
-        // 4. Update UI and Storage
-        if(typeof localforage !== 'undefined') await localforage.setItem(DB_KEY, appState); 
-        else localStorage.setItem(DB_KEY, JSON.stringify(appState));
-        
-        if(window.applyTranslations) window.applyTranslations(); 
-        if(window.applyTheme) window.applyTheme(); 
-        if(map) map.invalidateSize(); 
-        
-        if(window.renderEntireNetwork) window.renderEntireNetwork(); 
-        if(window.updateFeederDropdown) window.updateFeederDropdown(); 
-        window.setSyncStatus('synced'); 
-        if(window.centerMapOnGSS) window.centerMapOnGSS(); 
-        if(window.checkOnboardingFlow) window.checkOnboardingFlow(); 
-        if(window.updateUnsyncedBadge) window.updateUnsyncedBadge();
-
-    } catch (err) { 
-        console.error("Sync pull error:", err); 
-        window.setSyncStatus('offline'); 
-        if(map) map.invalidateSize(); 
-        if(window.checkOnboardingFlow) window.checkOnboardingFlow(); 
-        if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); 
-    }
-};
-
-
-// ==========================================
-// DEBOUNCED SAVING & OFFLINE QUEUE SYSTEM
-// ==========================================
 window.syncTimeout = null;
-
 window.triggerPersistence = function() { 
-    // Clear previous pending save if user is saving continuously (Debounce)
     if(window.syncTimeout) clearTimeout(window.syncTimeout);
-    
-    // Wait for 1.5 seconds of inactivity before writing to local database
     window.syncTimeout = setTimeout(() => {
         try { 
-            if(typeof localforage !== 'undefined') { 
-                localforage.setItem(DB_KEY, appState).catch((err) => console.error("LocalForage Error:", err)); 
-            } else { 
-                localStorage.setItem(DB_KEY, JSON.stringify(appState)); 
-            } 
-            
+            if(typeof localforage !== 'undefined') localforage.setItem(DB_KEY, appState).catch((err) => console.error("LocalForage Error:", err)); 
+            else localStorage.setItem(DB_KEY, JSON.stringify(appState)); 
             if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); 
-            
-            // If online, sync. If offline, it stays in the queue (synced = false)
-            if(navigator.onLine && appState.settings && appState.settings.liveSync) { 
-                window.syncToSupabase(); 
-            } else if (!navigator.onLine) {
-                window.setSyncStatus('offline');
-            }
-        } catch(err) { 
-            console.error("Persistence Error:", err); 
-        }
-    }, 1500); // 1.5 second delay prevents UI freezing during rapid edits
+            if(navigator.onLine && appState.settings && appState.settings.liveSync) window.syncToSupabase(); else if (!navigator.onLine) window.setSyncStatus('offline');
+        } catch(err) { console.error("Persistence Error:", err); }
+    }, 1500); 
 };
 
-// Automatically fire sync when internet connection returns
-window.addEventListener('online', () => {
-    if(appState.settings && appState.settings.liveSync) {
-        window.showToast("Back Online! Syncing background data...");
-        window.syncToSupabase();
-    }
-});
-
-window.addEventListener('offline', () => {
-    window.setSyncStatus('offline');
-    window.showToast("You are offline. Data saved locally.");
-});
-
+window.addEventListener('online', () => { if(appState.settings && appState.settings.liveSync) { window.showToast("Back Online! Syncing..."); window.syncToSupabase(); } });
+window.addEventListener('offline', () => { window.setSyncStatus('offline'); window.showToast("Offline. Data saved locally."); });
+setInterval(() => { if (navigator.onLine && appState.user && appState.user.isLoggedIn && appState.settings && appState.settings.liveSync) window.pullFromSupabase(); }, 60000);
+document.addEventListener('resume', () => { if (navigator.onLine && appState.user && appState.user.isLoggedIn) { if(window.showToast) window.showToast("🔄 Fetching updates..."); window.pullFromSupabase(); } }, false);
+window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { const syncBtn = document.getElementById('sync-indicator'); if (syncBtn) { syncBtn.style.cursor = 'pointer'; syncBtn.addEventListener('click', () => { if (navigator.onLine && appState.user && appState.user.isLoggedIn) { if(window.showToast) window.showToast("🔄 Manual Sync Started..."); window.syncToSupabase().then(() => window.pullFromSupabase()); } else { if(window.showToast) window.showToast("⚠️ You are offline!"); } }); } }, 2000); });
 
 window.checkOnboardingFlow = function() {
     if(isSetupModalOpen) return;
@@ -245,42 +140,3 @@ window.checkOnboardingFlow = function() {
     else if (Object.keys(appState.feeders || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Create Feeder"; document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; window.openFeederConfigModal(); }; } 
     else { document.getElementById('onboarding-overlay').style.display = 'none'; window.renderEntireNetwork(); }
 };
-// ==========================================
-// REAL-TIME AUTO-SYNC & MANUAL REFRESH
-// ==========================================
-
-// 1. Auto-pull data from cloud every 60 seconds (Background Sync)
-setInterval(() => {
-    if (navigator.onLine && appState.user && appState.user.isLoggedIn && appState.settings && appState.settings.liveSync) {
-        window.pullFromSupabase();
-    }
-}, 60000);
-
-// 2. Auto-pull when app is resumed from background (Minimised state)
-document.addEventListener('resume', () => {
-    if (navigator.onLine && appState.user && appState.user.isLoggedIn) {
-        if (window.showToast) window.showToast("🔄 Fetching latest updates...");
-        window.pullFromSupabase();
-    }
-}, false);
-
-// 3. Make Sync Cloud Icon Clickable for Manual Refresh
-window.addEventListener('DOMContentLoaded', () => {
-    // Add a slight delay to ensure UI is fully loaded
-    setTimeout(() => {
-        const syncBtn = document.getElementById('sync-indicator');
-        if (syncBtn) {
-            syncBtn.style.cursor = 'pointer';
-            syncBtn.addEventListener('click', () => {
-                if (navigator.onLine && appState.user && appState.user.isLoggedIn) {
-                    if (window.showToast) window.showToast("🔄 Manual Sync Started...");
-                    window.syncToSupabase().then(() => {
-                        window.pullFromSupabase();
-                    });
-                } else {
-                    if (window.showToast) window.showToast("⚠️ You are offline!");
-                }
-            });
-        }
-    }, 2000);
-});
