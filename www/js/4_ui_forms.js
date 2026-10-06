@@ -85,18 +85,28 @@ DiscomApp.UI.toggleFeederFolder = function() { const content = document.getEleme
 DiscomApp.UI.renderGssSidebarList = function() { const container = document.getElementById('gssListContainer'); if (!container) return; let html = ''; Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => { html += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-glass); padding:8px; border-radius:6px; margin-top:6px; border:1px solid var(--border);"><div><b style="font-size:0.85rem;">${gss.name}</b><br><small style="color:var(--text-sub);">Code: ${gss.code}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="DiscomApp.CRUD.relocateGss('${gss.code}')"><i class="fa-solid fa-location-crosshairs"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="DiscomApp.CRUD.deleteGssAndFeederStrict('${gss.code}')"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
 DiscomApp.UI.renderFeederSidebarList = function() { const container = document.getElementById('feederListContainer'); if (!container) return; let html = ''; Object.keys(DiscomApp.State.feeders || {}).forEach(fCode => { const f = DiscomApp.State.feeders[fCode].feeder; const isActive = DiscomApp.State.currentFeederCode === fCode; const bgClass = isActive ? 'background:rgba(37,99,235,0.1); border-left:4px solid var(--accent);' : 'background:var(--bg-glass); border:1px solid var(--border);'; html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:6px; margin-top:6px; ${bgClass}" onclick="DiscomApp.State.switchFeeder('${fCode}')"><div style="cursor:pointer; width: 100%;"><b style="font-size:0.85rem; color:var(--text-main);">${f.name}</b><br><small style="color:var(--text-sub);">GSS: ${f.parentGss}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="event.stopPropagation(); DiscomApp.UI.openEditFeederModal('${fCode}')"><i class="fa-solid fa-pen"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="event.stopPropagation(); DiscomApp.CRUD.deleteFeederStrict('${fCode}')"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
 
+// FIX: ADD GSS/FEEDER Forms Ab SafeSave ko force nahi karengi immediately
 DiscomApp.UI.openFeederConfigModal = function() { DiscomApp.UI.toggleSidebar(false); const gssOpts = Object.values(DiscomApp.State.gssNodes || {}).map(g => `<option value="${g.code}">${g.name}</option>`).join(''); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Feeder</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpFeederGss" class="form-select">${gssOpts}</select><label>Select GSS*</label></div><div class="form-row"><input type="text" id="inpFeederCode" class="form-input" placeholder=" "><label>Feeder Code*</label></div><div class="form-row"><input type="text" id="inpFeederName" class="form-input" placeholder=" "><label>Feeder Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewFeeder()">Save Feeder</button>`); };
 DiscomApp.UI.openEditFeederModal = function(code) { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Feeder Name</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" value="${code}" disabled placeholder=" "><label>Feeder Code (Locked)</label></div><div class="form-row"><input type="text" id="editFeederName" class="form-input" placeholder=" " value="${DiscomApp.State.feeders[code].feeder.name}"><label>New Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveEditedFeeder('${code}')">Save Changes</button>`); };
 DiscomApp.UI.openAddGssModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-plus-circle"></i> Add New GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="inpGssCode" class="form-input" placeholder=" "><label>GSS Code*</label></div><div class="form-row"><input type="text" id="inpGssName" class="form-input" placeholder=" "><label>GSS Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewGss()">Save GSS</button>`); };
 
+// FIX: AutoSaveSettings Ab Turant clustering refresh karega
 DiscomApp.UI.autoSaveSettings = function() { 
     DiscomApp.State.settings.unit = document.getElementById('setUnit').value; 
     DiscomApp.State.settings.language = document.getElementById('setLanguage').value; 
     DiscomApp.State.settings.theme = document.getElementById('setTheme').value; 
     DiscomApp.State.settings.liveSync = document.getElementById('setLiveSync').checked; 
     DiscomApp.State.settings.markerCluster = document.getElementById('setMarkerCluster').checked; 
-    DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); DiscomApp.DB.triggerPersistence(); DiscomApp.Map.renderEntireNetwork(); 
-    DiscomApp.UI.showToast("Settings Saved! (Reload map if cluster changed)"); 
+    
+    DiscomApp.UI.applyTranslations(); 
+    DiscomApp.UI.applyTheme(); 
+    DiscomApp.DB.triggerPersistence(); 
+    
+    // Refresh layers entirely to apply/remove clustering instantly
+    DiscomApp.Map.setupFeatureGroups();
+    DiscomApp.Map.renderEntireNetwork(); 
+    
+    DiscomApp.UI.showToast("Settings Saved!"); 
 };
 
 DiscomApp.UI.openSettingsPage = function() { 
