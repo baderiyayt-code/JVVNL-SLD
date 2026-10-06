@@ -1,4 +1,25 @@
 /* --- js/4_ui_forms.js --- */
+/* --- js/4_ui_forms.js --- */
+
+// --- LOGIN / SIGNUP UI LOGIC (MISSING FUNCTIONS FIX) ---
+DiscomApp.UI.toggleAuthMode = function() { 
+    authMode = authMode === 'login' ? 'signup' : 'login'; 
+    document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
+    document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; 
+    document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; 
+    document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
+};
+
+DiscomApp.UI.applyAuthUIVisuals = function() { 
+    document.getElementById('auth-screen').style.display = 'none'; 
+    document.getElementById('app-container').style.display = 'flex'; 
+    setTimeout(() => { if(map) map.invalidateSize(); }, 100); 
+    const uName = document.getElementById('userNameDisplay');
+    if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
+};
+// --------------------------------------------------------
+
+// इसके नीचे आपका मौजूदा DiscomApp.UI.applyTranslations = function() { ... वाला कोड रहेगा 
 
 DiscomApp.UI.applyTranslations = function() {
     const lang = DiscomApp.State.settings.language || 'en';
