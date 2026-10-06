@@ -25,7 +25,7 @@ DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return
 
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
-    map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([26.9150, 75.7830], 16);
+    map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true , rotate: true,touchRotate: true}).setView([26.9150, 75.7830], 16);
     map.on('zoomend', DiscomApp.Map.updateMapZoomClasses); 
     map.on('click', () => { const sheet = document.getElementById('object-bottom-sheet'); if(sheet && sheet.classList.contains('open')) DiscomApp.UI.closeObjectSheet(); });
     map.on('move', () => { 
