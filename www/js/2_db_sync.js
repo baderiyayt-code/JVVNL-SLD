@@ -1,5 +1,4 @@
 /* --- js/2_db_sync.js --- */
-
 DiscomApp.DB.handleSupabaseAuth = async function(mode) {
     if(!supabaseClient) return alert("Network/Supabase Error.");
     const email = document.getElementById('authEmail').value.trim(), password = document.getElementById('authPassword').value.trim(), name = document.getElementById('authName').value.trim();
@@ -10,8 +9,7 @@ DiscomApp.DB.handleSupabaseAuth = async function(mode) {
         if (mode === 'signup') { 
             if(!name) return alert("Full Name required!"); 
             response = await supabaseClient.auth.signUp({ email, password, options: { data: { full_name: name } } }); 
-            if(response.error) alert("Signup Error: " + response.error.message); 
-            else { alert("Account Created! You can now Login."); DiscomApp.UI.toggleAuthMode(); }
+            if(response.error) alert("Signup Error: " + response.error.message); else { alert("Account Created! You can now Login."); DiscomApp.UI.toggleAuthMode(); }
         } else { 
             response = await supabaseClient.auth.signInWithPassword({ email, password }); 
             if (response.error) alert("Login Error: " + response.error.message); 
@@ -44,14 +42,9 @@ DiscomApp.DB.updateUnsyncedBadge = function() {
 
 DiscomApp.DB.saveLocalData = async function() {
     const pureData = {
-        settings: DiscomApp.State.settings, user: DiscomApp.State.user, filters: DiscomApp.State.filters,
-        currentFeederCode: DiscomApp.State.currentFeederCode, gssNodes: DiscomApp.State.gssNodes, feeders: DiscomApp.State.feeders,
-        photos: DiscomApp.State.photos, deletedObjectIds: DiscomApp.State.deletedObjectIds, deletedFeederCodes: DiscomApp.State.deletedFeederCodes
+        settings: DiscomApp.State.settings, user: DiscomApp.State.user, filters: DiscomApp.State.filters, currentFeederCode: DiscomApp.State.currentFeederCode, gssNodes: DiscomApp.State.gssNodes, feeders: DiscomApp.State.feeders, photos: DiscomApp.State.photos, deletedObjectIds: DiscomApp.State.deletedObjectIds, deletedFeederCodes: DiscomApp.State.deletedFeederCodes
     };
-    try {
-        if(typeof localforage !== 'undefined') await localforage.setItem(DB_KEY, pureData);
-        else localStorage.setItem(DB_KEY, JSON.stringify(pureData));
-    } catch(e) { console.error("Local save error:", e); }
+    try { if(typeof localforage !== 'undefined') await localforage.setItem(DB_KEY, pureData); else localStorage.setItem(DB_KEY, JSON.stringify(pureData)); } catch(e) { console.error("Local save error:", e); }
 };
 
 DiscomApp.DB.syncToSupabase = async function() {
@@ -95,7 +88,6 @@ DiscomApp.DB.pullFromSupabase = async function() {
                     else if(type === 'DT') { if(!DiscomApp.State.feeders[fCode].dts) DiscomApp.State.feeders[fCode].dts = []; targetArray = DiscomApp.State.feeders[fCode].dts; }
                     else if(type === 'LINE') { if(!DiscomApp.State.feeders[fCode].lines) DiscomApp.State.feeders[fCode].lines = []; targetArray = DiscomApp.State.feeders[fCode].lines; }
                     else if(type === 'CONSUMER') { if(!DiscomApp.State.feeders[fCode].consumers) DiscomApp.State.feeders[fCode].consumers = []; targetArray = DiscomApp.State.feeders[fCode].consumers; }
-                    
                     if (targetArray) {
                         const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
                         if (existingObjIndex > -1) {
@@ -108,9 +100,7 @@ DiscomApp.DB.pullFromSupabase = async function() {
                 } 
             }); 
         }
-        
-        await DiscomApp.DB.saveLocalData();
-        DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); if(map) map.invalidateSize(); 
+        await DiscomApp.DB.saveLocalData(); DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); if(map) map.invalidateSize(); 
         DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.updateFeederDropdown(); DiscomApp.DB.setSyncStatus('synced'); 
         DiscomApp.Map.centerMapOnGSS(); DiscomApp.UI.checkOnboardingFlow(); DiscomApp.DB.updateUnsyncedBadge();
     } catch (err) { console.error("Sync pull error:", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
@@ -119,27 +109,17 @@ DiscomApp.DB.pullFromSupabase = async function() {
 DiscomApp.DB.syncTimeout = null;
 DiscomApp.DB.triggerPersistence = function() { 
     if(DiscomApp.DB.syncTimeout) clearTimeout(DiscomApp.DB.syncTimeout);
-    DiscomApp.DB.syncTimeout = setTimeout(() => {
-        DiscomApp.DB.saveLocalData().then(() => {
-            DiscomApp.DB.updateUnsyncedBadge(); 
-            if(navigator.onLine && DiscomApp.State.settings.liveSync) DiscomApp.DB.syncToSupabase(); 
-            else if (!navigator.onLine) DiscomApp.DB.setSyncStatus('offline');
-        });
-    }, 1500); 
+    DiscomApp.DB.syncTimeout = setTimeout(() => { DiscomApp.DB.saveLocalData().then(() => { DiscomApp.DB.updateUnsyncedBadge(); if(navigator.onLine && DiscomApp.State.settings.liveSync) DiscomApp.DB.syncToSupabase(); else if (!navigator.onLine) DiscomApp.DB.setSyncStatus('offline'); }); }, 1500); 
 };
 
-
 DiscomApp.DB.savePhotoData = async function(id, base64) {
-    if(!DiscomApp.State.photos) DiscomApp.State.photos = [];
-    const existingIndex = DiscomApp.State.photos.findIndex(p => p.id === id);
+    if(!DiscomApp.State.photos) DiscomApp.State.photos = []; const existingIndex = DiscomApp.State.photos.findIndex(p => p.id === id);
     if(existingIndex > -1) { DiscomApp.State.photos[existingIndex].synced = false; } else { DiscomApp.State.photos.push({ id: id, object_id: id, synced: false }); }
     try { if(typeof localforage !== 'undefined') await localforage.setItem('PHOTO_DATA_' + id, base64); else localStorage.setItem('PHOTO_DATA_' + id, base64); } catch(e) { console.error("Storage Full or Error:", e); }
     DiscomApp.DB.triggerPersistence();
 };
 
-DiscomApp.DB.getPhotoUrl = async function(id) {
-    try { if(typeof localforage !== 'undefined') { const data = await localforage.getItem('PHOTO_DATA_' + id); return data || null; } else { return localStorage.getItem('PHOTO_DATA_' + id) || null; } } catch(e) { return null; }
-};
+DiscomApp.DB.getPhotoUrl = async function(id) { try { if(typeof localforage !== 'undefined') { const data = await localforage.getItem('PHOTO_DATA_' + id); return data || null; } else { return localStorage.getItem('PHOTO_DATA_' + id) || null; } } catch(e) { return null; } };
 
 window.addEventListener('online', () => { if(DiscomApp.State.settings.liveSync) { DiscomApp.UI.showToast("Back Online! Syncing..."); DiscomApp.DB.syncToSupabase(); } });
 window.addEventListener('offline', () => { DiscomApp.DB.setSyncStatus('offline'); DiscomApp.UI.showToast("Offline. Data saved locally."); });
