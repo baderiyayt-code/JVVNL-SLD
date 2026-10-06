@@ -1,5 +1,4 @@
 /* --- js/7_main.js --- */
-
 DiscomApp.Main.requestAppPermissions = function() {
     if(window.cordova && cordova.plugins && cordova.plugins.permissions) {
         var permissions = cordova.plugins.permissions;
@@ -13,7 +12,6 @@ DiscomApp.Main.requestAppPermissions = function() {
     } else { document.getElementById('permission-overlay').style.display = 'none'; DiscomApp.Main.initializeAppPostPermissions(); }
 }
 
-
 DiscomApp.Main.initializeAppPostPermissions = async function() {
     try {
         DiscomApp.Map.initMapLayers();
@@ -23,10 +21,19 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         if (typeof localforage !== 'undefined') data = await localforage.getItem(DB_KEY); 
         if (!data) { const lsData = localStorage.getItem(DB_KEY); if (lsData) data = JSON.parse(lsData); }
         
-        if (data && data.feeders) { 
-            Object.assign(DiscomApp.State, data);
-            // FIX: Reset orphanPoleIds to a fresh Set on load to prevent crashes
-            DiscomApp.State.orphanPoleIds = new Set(); 
+        // FIX: SAFE DATA MERGING (Prevents Object.assign from destroying functions)
+        if (data) { 
+            if(data.feeders) DiscomApp.State.feeders = data.feeders;
+            if(data.gssNodes) DiscomApp.State.gssNodes = data.gssNodes;
+            if(data.settings) DiscomApp.State.settings = { ...DiscomApp.State.settings, ...data.settings };
+            if(data.user) DiscomApp.State.user = { ...DiscomApp.State.user, ...data.user };
+            if(data.filters) DiscomApp.State.filters = { ...DiscomApp.State.filters, ...data.filters };
+            if(data.currentFeederCode) DiscomApp.State.currentFeederCode = data.currentFeederCode;
+            if(data.photos) DiscomApp.State.photos = data.photos;
+            if(data.deletedObjectIds) DiscomApp.State.deletedObjectIds = data.deletedObjectIds;
+            if(data.deletedFeederCodes) DiscomApp.State.deletedFeederCodes = data.deletedFeederCodes;
+            
+            DiscomApp.State.orphanPoleIds = new Set();
             if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         } 
         
@@ -35,6 +42,7 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         
         if (DiscomApp.State.user && DiscomApp.State.user.isLoggedIn) { 
             if(DiscomApp.UI.applyAuthUIVisuals) DiscomApp.UI.applyAuthUIVisuals(); 
+            
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
@@ -59,11 +67,11 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         }
     } catch (e) { 
         console.error("Init Error:", e); 
-        document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; 
+        document.getElementById('app-container').style.display = 'none'; 
+        document.getElementById('auth-screen').style.display = 'flex'; 
         if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Offline Mode / Load Error"); 
     }
-};
-
+}
 
 DiscomApp.Main.startAppStartupSequence = function() {
     setTimeout(() => {
@@ -97,5 +105,3 @@ DiscomApp.Main.toggleLiveTracking = function() {
         }, (err) => { btn.style.color = ''; liveTrackWatchId = null; }, { enableHighAccuracy: true, maximumAge: 0 });
     }
 };
-
-DiscomApp.UI.toggleKPIBar = function() { const kpi = document.getElementById('kpi-container'), icon = document.getElementById('kpi-toggle-icon'); if(!kpi || !icon) return; kpi.classList.toggle('collapsed'); icon.className = kpi.classList.contains('collapsed') ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up'; };
