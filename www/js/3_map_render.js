@@ -25,15 +25,17 @@ DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return
 
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
-    
-    // Map Rotation enabled via leaflet-rotate
-    map = L.map('map', { 
-        zoomControl: false, attributionControl: false, preferCanvas: true,
-        rotate: true, touchRotate: true, shiftKeyRotate: true, bearing: 0 
-    }).setView([26.9150, 75.7830], 16);
-
+    map = L.map('map', { zoomControl: false, attributionControl: false, preferCanvas: true, rotate: true, touchRotate: true, shiftKeyRotate: true, bearing: 0 }).setView([26.9150, 75.7830], 16);
     map.on('zoomend', DiscomApp.Map.updateMapZoomClasses); 
-    map.on('click', () => { const sheet = document.getElementById('object-bottom-sheet'); if(sheet && sheet.classList.contains('open')) DiscomApp.UI.closeObjectSheet(); });
+    
+    // FIX: Only close sheet if placement is NOT active, otherwise it breaks FAB placement
+    map.on('click', () => { 
+        if(!DiscomApp.State.placementType) {
+            const sheet = document.getElementById('object-bottom-sheet'); 
+            if(sheet && sheet.classList.contains('open')) DiscomApp.UI.closeObjectSheet(); 
+        }
+    });
+
     map.on('move', () => { 
         const c = map.getCenter(); document.getElementById('reticle-coordinates').innerText = `${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}`; 
         if (DiscomApp.State.placementType && document.getElementById('center-placement-pin').style.display === 'block') {
@@ -55,7 +57,15 @@ DiscomApp.Map.initMapLayers = function() {
     };
     layerKeys = Object.keys(tileLayers); tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
     
-    // Check Settings for Marker Cluster Toggle
+    DiscomApp.Map.setupFeatureGroups();
+};
+
+// FIX: Dynamic clustering function to rebuild map when settings change
+DiscomApp.Map.setupFeatureGroups = function() {
+    if(!map) return;
+    if(featureGroups.gss) {
+        Object.values(featureGroups).forEach(g => { if(map.hasLayer(g)) map.removeLayer(g); });
+    }
     const useCluster = DiscomApp.State.settings.markerCluster !== false && typeof L.markerClusterGroup !== 'undefined';
     
     featureGroups = { 
@@ -66,7 +76,7 @@ DiscomApp.Map.initMapLayers = function() {
         poles: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), 
         consumers: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 19, maxClusterRadius: 40 }).addTo(map) : L.featureGroup().addTo(map) 
     };
-}
+};
 
 DiscomApp.Map.updateMapZoomClasses = function() {
     if(!map) return; const z = map.getZoom(), mapEl = document.getElementById('map'); 
@@ -104,7 +114,6 @@ DiscomApp.Map.centerMapOnLastObjectOrGSS = function() {
     }, 400);
 };
 
-// --- FIX: MULTIPLE DT OVERLAP FIX (DYNAMIC SPACING) ---
 DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
     const strokeC = isOrphan ? '#ef4444' : '#475569', fillC = isOrphan ? '#fca5a5' : '#fb923c'; 
     let displayNo = p.poleNo; const isLT = p.lineType === 'LT'; if (isLT && String(p.poleNo).includes('-')) displayNo = String(p.poleNo).split('-')[1];
