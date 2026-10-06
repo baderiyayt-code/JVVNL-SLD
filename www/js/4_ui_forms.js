@@ -18,8 +18,46 @@ DiscomApp.UI.applyAuthUIVisuals = function() {
     if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
 };
 // --------------------------------------------------------
+/* --- js/4_ui_forms.js --- */
+// (इसके ऊपर window.tempPhotoUrl और currentSelectedObj वाला कोड रहेगा)
 
-// इसके नीचे आपका मौजूदा DiscomApp.UI.applyTranslations = function() { ... वाला कोड रहेगा 
+// --- MISSING UI FUNCTIONS FIX ---
+DiscomApp.UI.updateFeederDropdown = function() { 
+    const header = document.getElementById('activeFeederLabel'); if(!header) return; 
+    const keys = Object.keys(DiscomApp.State.feeders || {}); 
+    if(keys.length === 0) { 
+        header.innerText = 'No Feeder'; 
+        DiscomApp.State.currentFeederCode = null; 
+    } 
+    else { 
+        if(!DiscomApp.State.currentFeederCode || !DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]) { 
+            DiscomApp.State.currentFeederCode = keys[0]; 
+        } 
+        const currentFeeder = DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]; 
+        header.innerText = (currentFeeder && currentFeeder.feeder && currentFeeder.feeder.name) ? currentFeeder.feeder.name : 'Unnamed Feeder'; 
+    } 
+};
+
+DiscomApp.UI.checkOnboardingFlow = function() {
+    if(isSetupModalOpen) return;
+    if(Object.keys(DiscomApp.State.gssNodes || {}).length === 0) { 
+        document.getElementById('onboarding-overlay').style.display = 'flex'; 
+        document.getElementById('onboarding-title').innerText = "Network Setup Required"; 
+        document.getElementById('onboarding-desc').innerText = "Please add your first GSS to begin mapping."; 
+        document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openAddGssModal(); }; 
+    } 
+    else if (Object.keys(DiscomApp.State.feeders || {}).length === 0) { 
+        document.getElementById('onboarding-overlay').style.display = 'flex'; 
+        document.getElementById('onboarding-title').innerText = "Create Feeder"; 
+        document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; 
+        document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openFeederConfigModal(); }; 
+    } 
+    else { 
+        document.getElementById('onboarding-overlay').style.display = 'none'; 
+    }
+};
+// --------------------------------------------------------
+
 
 DiscomApp.UI.applyTranslations = function() {
     const lang = DiscomApp.State.settings.language || 'en';
