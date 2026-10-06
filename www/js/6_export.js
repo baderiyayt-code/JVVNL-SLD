@@ -185,6 +185,19 @@ DiscomApp.Export.exportFullJSONBackup = function() {
 
 DiscomApp.Export.handleImportChoice = function(e) {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
-    reader.onload = function(ev) { try { const importedData = JSON.parse(ev.target.result); if(!importedData.feeders) return alert("Invalid File!"); DiscomApp.State = importedData; DiscomApp.DB.triggerPersistence(); DiscomApp.Map.renderEntireNetwork(); alert("Backup Restored!"); DiscomApp.UI.closeModal(); } catch(err) { alert("Error parsing file!"); } };
+    reader.onload = function(ev) { 
+        try { 
+            const importedData = JSON.parse(ev.target.result); 
+            if(!importedData.feeders) return alert("Invalid File!"); 
+            
+            // FIX: Object.assign का इस्तेमाल
+            Object.assign(DiscomApp.State, importedData); 
+            
+            DiscomApp.DB.triggerPersistence(); 
+            DiscomApp.Map.renderEntireNetwork(); 
+            alert("Backup Restored!"); 
+            DiscomApp.UI.closeModal(); 
+        } catch(err) { alert("Error parsing file!"); } 
+    };
     reader.readAsText(file);
-}
+};
