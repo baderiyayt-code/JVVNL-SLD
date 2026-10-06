@@ -1,3 +1,5 @@
+/* --- js/7_main.js --- */
+
 window.requestAppPermissions = function() {
     if(window.cordova && cordova.plugins && cordova.plugins.permissions) {
         var permissions = cordova.plugins.permissions;
@@ -18,23 +20,45 @@ window.initializeAppPostPermissions = async function() {
         if (typeof supabase !== 'undefined') supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let data = null; if (typeof localforage !== 'undefined') data = await localforage.getItem(DB_KEY); 
         if (!data) { const lsData = localStorage.getItem(DB_KEY); if (lsData) data = JSON.parse(lsData); }
-        if (data && data.feeders) appState = data; 
+        
+        // FIX: Merge data safely without breaking DiscomApp Namespace Reference
+        if (data && data.feeders) {
+            Object.assign(window.appState, data); 
+        }
+        
         window.applyTranslations(); window.applyTheme();
         
-        if (appState.user && appState.user.isLoggedIn) { 
-            window.applyAuthUIVisuals(); setTimeout(() => { if(map) map.invalidateSize(); window.renderEntireNetwork(); window.centerMapOnGSS(); window.checkOnboardingFlow(); window.updateUnsyncedBadge(); }, 100);
-        } else { document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; }
+        if (window.appState.user && window.appState.user.isLoggedIn) { 
+            window.applyAuthUIVisuals(); 
+            setTimeout(() => { 
+                if(map) map.invalidateSize(); 
+                window.renderEntireNetwork(); 
+                window.centerMapOnGSS(); 
+                if(window.checkOnboardingFlow) window.checkOnboardingFlow(); 
+                if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); 
+            }, 100);
+        } else { 
+            document.getElementById('app-container').style.display = 'none'; 
+            document.getElementById('auth-screen').style.display = 'flex'; 
+        }
         
         if (supabaseClient) {
             supabaseClient.auth.getSession().then(({ data }) => {
                 if (data && data.session && data.session.user) {
-                    appState.user.isLoggedIn = true; appState.user.email = data.session.user.email; appState.user.id = data.session.user.id;
-                    appState.user.name = data.session.user.user_metadata?.full_name || data.session.user.email.split('@')[0];
+                    window.appState.user.isLoggedIn = true; 
+                    window.appState.user.email = data.session.user.email; 
+                    window.appState.user.id = data.session.user.id;
+                    window.appState.user.name = data.session.user.user_metadata?.full_name || data.session.user.email.split('@')[0];
                     window.applyAuthUIVisuals(); window.pullFromSupabase(); 
                 }
             }).catch(err => console.log("Offline mode"));
         }
-    } catch (e) { console.error("Init Error:", e); document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; window.showToast("Offline Mode / Load Error"); }
+    } catch (e) { 
+        console.error("Init Error:", e); 
+        document.getElementById('app-container').style.display = 'none'; 
+        document.getElementById('auth-screen').style.display = 'flex'; 
+        window.showToast("Offline Mode / Load Error"); 
+    }
 }
 
 window.startAppStartupSequence = function() {
@@ -47,6 +71,7 @@ window.startAppStartupSequence = function() {
 
 document.addEventListener('deviceready', window.startAppStartupSequence, false); 
 if (!window.cordova) { window.addEventListener('DOMContentLoaded', window.startAppStartupSequence); }
+
 /* ==========================================
    LIVE TRACKING WITH ACCURACY CIRCLE & KPI
 ========================================== */
@@ -72,10 +97,9 @@ window.toggleLiveTracking = function() {
         liveTrackWatchId = navigator.geolocation.watchPosition((pos) => {
             const lat = pos.coords.latitude;
             const lng = pos.coords.longitude;
-            const acc = pos.coords.accuracy; // Exact accuracy radius in meters
+            const acc = pos.coords.accuracy;
             
             if(!liveTrackMarker && typeof map !== 'undefined') {
-                // 1. Solid Blue Dot
                 liveTrackMarker = L.marker([lat, lng], {
                     icon: L.divIcon({
                         className: 'live-gps-dot',
@@ -85,20 +109,12 @@ window.toggleLiveTracking = function() {
                     }), zIndexOffset: 9999
                 }).addTo(map);
                 
-                // 2. Accuracy Light Blue Circle (Like Google Maps)
-                liveTrackCircle = L.circle([lat, lng], {
-                    radius: acc,
-                    color: '#3b82f6',
-                    weight: 1,
-                    fillColor: '#3b82f6',
-                    fillOpacity: 0.15
-                }).addTo(map);
-                
+                liveTrackCircle = L.circle([lat, lng], { radius: acc, color: '#3b82f6', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
                 map.setView([lat, lng], 19);
             } else if(liveTrackMarker && liveTrackCircle) {
                 liveTrackMarker.setLatLng([lat, lng]);
                 liveTrackCircle.setLatLng([lat, lng]);
-                liveTrackCircle.setRadius(acc); // Auto expand/shrink radius based on signal
+                liveTrackCircle.setRadius(acc); 
             }
         }, (err) => {
             console.error(err);
@@ -116,4 +132,3 @@ window.toggleKPIBar = function() {
     kpi.classList.toggle('collapsed');
     icon.className = kpi.classList.contains('collapsed') ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
 };
-
