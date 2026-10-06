@@ -245,3 +245,42 @@ window.checkOnboardingFlow = function() {
     else if (Object.keys(appState.feeders || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Create Feeder"; document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; window.openFeederConfigModal(); }; } 
     else { document.getElementById('onboarding-overlay').style.display = 'none'; window.renderEntireNetwork(); }
 };
+// ==========================================
+// REAL-TIME AUTO-SYNC & MANUAL REFRESH
+// ==========================================
+
+// 1. Auto-pull data from cloud every 60 seconds (Background Sync)
+setInterval(() => {
+    if (navigator.onLine && appState.user && appState.user.isLoggedIn && appState.settings && appState.settings.liveSync) {
+        window.pullFromSupabase();
+    }
+}, 60000);
+
+// 2. Auto-pull when app is resumed from background (Minimised state)
+document.addEventListener('resume', () => {
+    if (navigator.onLine && appState.user && appState.user.isLoggedIn) {
+        if (window.showToast) window.showToast("🔄 Fetching latest updates...");
+        window.pullFromSupabase();
+    }
+}, false);
+
+// 3. Make Sync Cloud Icon Clickable for Manual Refresh
+window.addEventListener('DOMContentLoaded', () => {
+    // Add a slight delay to ensure UI is fully loaded
+    setTimeout(() => {
+        const syncBtn = document.getElementById('sync-indicator');
+        if (syncBtn) {
+            syncBtn.style.cursor = 'pointer';
+            syncBtn.addEventListener('click', () => {
+                if (navigator.onLine && appState.user && appState.user.isLoggedIn) {
+                    if (window.showToast) window.showToast("🔄 Manual Sync Started...");
+                    window.syncToSupabase().then(() => {
+                        window.pullFromSupabase();
+                    });
+                } else {
+                    if (window.showToast) window.showToast("⚠️ You are offline!");
+                }
+            });
+        }
+    }, 2000);
+});
