@@ -1,10 +1,32 @@
-/* --- js/5_crud_actions.js --- */ 
+/* --- js/5_crud_actions.js --- */
+
+// 1. Math Function for Magic Pole (Distance Calculation)
+DiscomApp.Map.getPointToSegmentDetails = function(p, a, b) {
+    const R = 6371000; const rad = Math.PI / 180;
+    const px = p.lng * Math.cos(a.lat * rad) * R * rad; const py = p.lat * R * rad;
+    const ax = a.lng * Math.cos(a.lat * rad) * R * rad; const ay = a.lat * R * rad;
+    const bx = b.lng * Math.cos(a.lat * rad) * R * rad; const by = b.lat * R * rad;
+    const lineVecX = bx - ax, lineVecY = by - ay;
+    const ptVecX = px - ax, ptVecY = py - ay;
+    const len_sq = lineVecX * lineVecX + lineVecY * lineVecY;
+    let param = -1;
+    if (len_sq !== 0) { const dot = ptVecX * lineVecX + ptVecY * lineVecY; param = dot / len_sq; }
+    let nearestX, nearestY, isBetween = false;
+    if (param < 0) { nearestX = ax; nearestY = ay; } 
+    else if (param > 1) { nearestX = bx; nearestY = by; } 
+    else { nearestX = ax + param * lineVecX; nearestY = ay + param * lineVecY; isBetween = true; }
+    const dx = px - nearestX, dy = py - nearestY;
+    return { distance: Math.sqrt(dx * dx + dy * dy), isBetween: isBetween };
+};
+
+// 2. Magic Pole Logic
 DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     try {
         if(!net || !net.lines || !net.poles) return;
         let closestLineIndex = -1, matchedLine = null, minDistance = Infinity;
         const isLT = (newPole.lineType === 'LT');
-        const maxAllowedDist = isLT ? 1.0 : 2.5; 
+        // FIX: Increased touch tolerance to 5 meters so it catches the line easily
+        const maxAllowedDist = 5.0; 
 
         for (let i = 0; i < net.lines.length; i++) {
             const l = net.lines[i]; const isLineLT = l.type && l.type.includes('LT');
@@ -39,50 +61,15 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
                 const id2 = 'LINE_' + Date.now() + '_' + Math.floor(Math.random()*1000 + 1000);
                 net.lines.push({ id: id1, type: lineType, phase: linePhase, conductor: lineCond, fromNode: originalFrom, toNode: newPoleNodeId, synced: false, updatedAt: Date.now() });
                 net.lines.push({ id: id2, type: lineType, phase: linePhase, conductor: lineCond, fromNode: newPoleNodeId, toNode: originalTo, synced: false, updatedAt: Date.now() });
-                if(DiscomApp.UI.showToast) DiscomApp.UI.showToast(`✨ Magic ${isLT ? 'LT' : 'HT'} Pole Split! (${minDistance.toFixed(2)}m)`);
+                if(DiscomApp.UI.showToast) DiscomApp.UI.showToast(`✨ Magic ${isLT ? 'LT' : 'HT'} Pole Split! (${minDistance.toFixed(1)}m)`);
             }
         }
     } catch (err) {
-        console.error("Magic Split Logic Error, bypassing safely:", err);
+        console.error("Magic Split Logic Error:", err);
     }
 };
-// FIX: Direct GSS and Feeder Save (Bypass SafeSave wrapper to prevent HTML read errors)
-DiscomApp.CRUD.saveNewGss = function() { 
-    try {
-        const code = document.getElementById('inpGssCode').value.trim(); const name = document.getElementById('inpGssName').value.trim(); 
-        if (!code || !name) return alert("Enter GSS Code and Name"); 
-        if (!DiscomApp.State.gssNodes) DiscomApp.State.gssNodes = {}; 
-        if (DiscomApp.State.gssNodes[code]) return alert("GSS Code already exists!"); 
-        let centerLat = 26.9150; let centerLng = 75.7830; 
-        if(typeof map !== 'undefined' && map) { const center = map.getCenter(); centerLat = parseFloat(center.lat.toFixed(6)); centerLng = parseFloat(center.lng.toFixed(6)); }
-        DiscomApp.State.gssNodes[code] = { code: code, name: name, lat: centerLat, lng: centerLng }; 
-        DiscomApp.UI.closeModal(); 
-        setTimeout(() => {
-            if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork();
-            if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence();
-            if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("New GSS added!"); 
-            if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow();
-        }, 100);
-    } catch(e) { alert("Error saving GSS!"); }
-};
 
-DiscomApp.CRUD.saveNewFeeder = function() { 
-    try {
-        const gss = document.getElementById('inpFeederGss').value; const code = document.getElementById('inpFeederCode').value.trim(); const name = document.getElementById('inpFeederName').value.trim(); 
-        if(!gss || !code || !name) return alert("All fields are required"); 
-        if(!DiscomApp.State.feeders) DiscomApp.State.feeders = {}; 
-        if(DiscomApp.State.feeders[code]) return alert("Feeder code already exists"); 
-        DiscomApp.State.feeders[code] = { feeder: { name: name, code: code, subdivCode: "SD-01", parentGss: gss }, poles: [], dts: [], lines: [], consumers: [] }; 
-        DiscomApp.State.currentFeederCode = code; 
-        DiscomApp.UI.closeModal(); 
-        setTimeout(() => {
-            if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork();
-            if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence();
-            if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Feeder Added!"); 
-        }, 100);
-    } catch (e) { alert("Error saving feeder!"); }
-};
-
+// 3. Saving Add & Edit Data
 DiscomApp.CRUD.saveNewPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const poleNo = document.getElementById('inpPoleNo').value.trim(), pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value, pConf = document.getElementById('inpPccConfig').value;
@@ -122,7 +109,6 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     return true;
 };
 
-// Line Validation Fixed: Will NOT save or draw until Loop is confirmed false
 window.networkValidatorWorker = new Worker('js/loop_worker.js');
 DiscomApp.CRUD.saveNewLine = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
@@ -134,34 +120,24 @@ DiscomApp.CRUD.saveNewLine = function() {
     DiscomApp.UI.showToast("⏳ Checking topology...");
     const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode, synced: false, updatedAt: Date.now() };
     const isLT = type && type.includes('LT');
-    
-    // Nayi line ko Worker mein bhejte hain, par abhi map/DB mein save nahi kar rahe!
     const tempLines = [...(net.lines||[]), newObj];
     
     window.networkValidatorWorker.postMessage({ lines: tempLines, poles: net.poles, dts: net.dts, gssNodes: DiscomApp.State.gssNodes, feeder: net.feeder, networkType: isLT ? 'LT' : 'HT' });
-    
     window.networkValidatorWorker.onmessage = function(e) {
         if (e.data.hasLoop) { 
-            // Loop mila! Line save nahi hogi aur error dikhega
             alert(e.data.message); 
-        } 
-        else {
-            // Loop nahi hai! Ab ise DB me dalkar map refresh karenge
+        } else {
             DiscomApp.State.saveSnapshot();
             net.lines.push(newObj); 
             if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-            
             DiscomApp.UI.showToast("✅ Line saved successfully!");
             DiscomApp.UI.closeModal();
             DiscomApp.Map.renderEntireNetwork(); 
             DiscomApp.DB.triggerPersistence();
         }
     };
-    
-    // Return ASYNC taaki master saver modal band na kare validation aane se pehle
     return 'ASYNC';
 };
-
 
 DiscomApp.CRUD.saveNewDT = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
@@ -173,7 +149,7 @@ DiscomApp.CRUD.saveNewDT = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'DT_' + Date.now(), code: code, parentPole: parent.replace('POLE_','').replace('GSS_',''), mountedOn: mountedOn, phase: phase, rating: rating, location: loc, lat: lat, lng: lng, synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.dts.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('DT', newObj);
+    net.dts.push(newObj); DiscomApp.State.placementType = null; 
     return true;
 };
 
@@ -185,7 +161,7 @@ DiscomApp.CRUD.saveNewConsumer = function() {
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    net.consumers.push(newObj); DiscomApp.State.placementType = null; DiscomApp.Map.addSingleObjectToMap('CONSUMER', newObj);
+    net.consumers.push(newObj); DiscomApp.State.placementType = null; 
     return true;
 };
 
