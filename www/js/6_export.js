@@ -1,5 +1,4 @@
 /* --- js/6_export.js --- */
-
 DiscomApp.Export.downloadFileNative = function(blob, filename) {
     try {
         const nameParts = filename.split('.'); const ext = nameParts.pop(); const baseName = nameParts.join('.');
@@ -19,8 +18,6 @@ DiscomApp.Export.fallbackBrowserDownload = function(blob, filename) {
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); DiscomApp.UI.showToast(`Downloaded: ${filename}`); DiscomApp.UI.closeModal();
 };
 
-
-/* --- js/6_export.js में रिप्लेस करें --- */
 DiscomApp.Export.generateCadSLDPdf = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
     if (typeof window.jspdf === 'undefined') return alert("PDF Library loading...");
@@ -64,16 +61,13 @@ DiscomApp.Export.generateCadSLDPdf = function() {
         if(maxLat === minLat) { maxLat += 0.001; minLat -= 0.001; } 
         if(maxLng === minLng) { maxLng += 0.001; minLng -= 0.001; }
         
-        // Add padding
         const padLat = (maxLat - minLat) * 0.1; const padLng = (maxLng - minLng) * 0.1;
         minLat -= padLat; maxLat += padLat; minLng -= padLng; maxLng += padLng;
         
-        // FIX: True geographic Aspect Ratio correction (Preserves map proportions)
         const cosLat = Math.cos(((minLat + maxLat) / 2) * (Math.PI / 180));
         const dLat = maxLat - minLat; 
         const dLng = (maxLng - minLng) * cosLat; 
 
-        // Calculate Uniform Scale
         const scaleX = cw / dLng;
         const scaleY = ch / dLat;
         const scale = Math.min(scaleX, scaleY);
@@ -86,7 +80,7 @@ DiscomApp.Export.generateCadSLDPdf = function() {
         const mapToPdf = (lat, lng) => {
             return { 
                 x: xOffset + (((lng - minLng) * cosLat) * scale), 
-                y: yOffset + ch - ((lat - minLat) * scale) // Y-axis inverted for PDF
+                y: yOffset + ch - ((lat - minLat) * scale) 
             };
         };
 
@@ -155,7 +149,6 @@ DiscomApp.Export.generateCadSLDPdf = function() {
     } catch(err) { console.error("PDF Gen Error:", err); alert("Error generating PDF: " + err.message); }
 };
 
-
 DiscomApp.Export.exportDtReportPdf = function(dtId) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const d = (net.dts||[]).find(x => x.id === dtId); if(!d) return;
     try { const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); doc.text(`DT Report: ${d.code}`, 15, 15); const pdfBlob = doc.output('blob'); DiscomApp.Export.downloadFileNative(pdfBlob, `DT_${d.code}_Report.pdf`); } catch(err) { alert("Error"); }
@@ -190,8 +183,10 @@ DiscomApp.Export.handleImportChoice = function(e) {
             const importedData = JSON.parse(ev.target.result); 
             if(!importedData.feeders) return alert("Invalid File!"); 
             
-            // FIX: Object.assign का इस्तेमाल
-            Object.assign(DiscomApp.State, importedData); 
+            if(importedData.feeders) DiscomApp.State.feeders = importedData.feeders;
+            if(importedData.gssNodes) DiscomApp.State.gssNodes = importedData.gssNodes;
+            if(importedData.settings) DiscomApp.State.settings = { ...DiscomApp.State.settings, ...importedData.settings };
+            if(importedData.currentFeederCode) DiscomApp.State.currentFeederCode = importedData.currentFeederCode;
             
             DiscomApp.DB.triggerPersistence(); 
             DiscomApp.Map.renderEntireNetwork(); 
@@ -200,4 +195,4 @@ DiscomApp.Export.handleImportChoice = function(e) {
         } catch(err) { alert("Error parsing file!"); } 
     };
     reader.readAsText(file);
-};
+}
