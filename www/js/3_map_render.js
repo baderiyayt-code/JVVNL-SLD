@@ -68,15 +68,24 @@ DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
     else if(p.poleType === 'RAIL POLE') poleSvg = `<rect x="22" y="10" width="16" height="85" fill="${fillC}" stroke="${strokeC}" stroke-width="2"/><line x1="12" y1="20" x2="48" y2="20" stroke="${strokeC}" stroke-width="5"/><rect x="18" y="10" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/><rect x="36" y="10" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/>`;
     else if(p.poleType === 'PCC' && p.poleConfig === 'Double Pole') poleSvg = `<polygon points="12,15 20,15 22,95 10,95" fill="${fillC}" stroke="${strokeC}" stroke-width="1.5"/><polygon points="40,15 48,15 50,95 38,95" fill="${fillC}" stroke="${strokeC}" stroke-width="1.5"/><rect x="6" y="25" width="48" height="5" fill="${strokeC}"/><rect x="6" y="45" width="48" height="5" fill="${strokeC}"/><rect x="13" y="15" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/><rect x="27" y="15" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/><rect x="41" y="15" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/>`;
     else { if(isLT) poleSvg = `<polygon points="26,30 34,30 36,95 24,95" fill="${fillC}" stroke="${strokeC}" stroke-width="1.5"/><rect x="18" y="25" width="24" height="6" fill="${strokeC}" rx="1"/><rect x="27" y="18" width="6" height="8" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/>`; else poleSvg = `<path d="M 10 20 L 30 35 L 50 20" fill="none" stroke="${strokeC}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><polygon points="26,30 34,30 36,95 24,95" fill="${fillC}" stroke="${strokeC}" stroke-width="1.5"/><rect x="7" y="10" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/><rect x="47" y="10" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/><rect x="27" y="25" width="6" height="10" fill="#78350f" rx="2" stroke="#0f172a" stroke-width="1"/>`; }
+    
     let dtSvgs = '';
     if(associatedDTs && associatedDTs.length > 0) {
-        associatedDTs.forEach((d, idx) => {
-            const numRating = String(d.rating).replace(/[^0-9]/g, ''); let startX = cx; if (associatedDTs.length > 1) startX = idx === 0 ? cx - 18 : cx + 18;
-            if(d.phase === 'Single Phase') dtSvgs += `<g transform="translate(${startX - 13}, 65)" onclick="DiscomApp.UI.openDTFromSVG(event, '${d.id}')" style="cursor:pointer;"><rect x="0" y="0" width="26" height="30" rx="2" fill="${fillC}" stroke="#0f172a" stroke-width="2"/><rect x="3" y="3" width="20" height="24" fill="#fdba74"/><polygon points="10,0 16,0 13,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><rect x="11" y="-9" width="4" height="2" fill="#94a3b8"/><text x="13" y="19" font-size="13" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></g>`;
-            else dtSvgs += `<g transform="translate(${startX - 16}, 60)" onclick="DiscomApp.UI.openDTFromSVG(event, '${d.id}')" style="cursor:pointer;"><rect x="0" y="0" width="32" height="36" rx="3" fill="${fillC}" stroke="#0f172a" stroke-width="2"/><polygon points="7,0 11,0 9,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="15,0 19,0 17,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="23,0 27,0 25,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><text x="16" y="23" font-size="12" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></g>`;
-        });
-    }
-    return `<svg viewBox="0 -20 100 130" style="width:50px;height:75px; filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.6)); overflow:visible;">${numberPill}<g transform="translate(20, 0)">${poleSvg}</g>${dtSvgs}</svg>`;
+    associatedDTs.forEach((d, idx) => {
+        const numRating = String(d.rating).replace(/[^0-9]/g, ''); 
+        let startX = cx; 
+        if (associatedDTs.length === 2) {
+            startX = idx === 0 ? cx - 18 : cx + 18;
+        } else if (associatedDTs.length > 2) {
+            startX = cx + ((idx - (associatedDTs.length - 1) / 2) * 22);
+        }
+        
+        if(d.phase === 'Single Phase') {
+            dtSvgs += `<g transform="translate(${startX - 13}, 65)" onclick="DiscomApp.UI.openDTFromSVG(event, '${d.id}')" style="cursor:pointer;"><rect x="0" y="0" width="26" height="30" rx="2" fill="${fillC}" stroke="#0f172a" stroke-width="2"/><rect x="3" y="3" width="20" height="24" fill="#fdba74"/><polygon points="10,0 16,0 13,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><rect x="11" y="-9" width="4" height="2" fill="#94a3b8"/><text x="13" y="19" font-size="13" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></g>`;
+        } else {
+            dtSvgs += `<g transform="translate(${startX - 16}, 60)" onclick="DiscomApp.UI.openDTFromSVG(event, '${d.id}')" style="cursor:pointer;"><rect x="0" y="0" width="32" height="36" rx="3" fill="${fillC}" stroke="#0f172a" stroke-width="2"/><polygon points="7,0 11,0 9,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="15,0 19,0 17,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><polygon points="23,0 27,0 25,-7" fill="#78350f" stroke="#0f172a" stroke-width="1"/><text x="16" y="23" font-size="12" font-weight="900" fill="#0f172a" text-anchor="middle" font-family="sans-serif">${numRating}</text></g>`;
+        }
+    });
 }
 
 DiscomApp.Map.getDTSVG = function(phase, rating) {
