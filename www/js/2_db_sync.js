@@ -71,79 +71,42 @@ DiscomApp.DB.syncToSupabase = async function() {
     } catch (err) { console.warn("Sync error", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
 };
 
-/* --- js/2_db_sync.js mein sirf is function ko replace karein --- */
-
-/* --- js/2_db_sync.js mein sirf is function ko replace karein --- */
-
 DiscomApp.DB.pullFromSupabase = async function() {
-    if (!supabaseClient || !DiscomApp.State.user.isLoggedIn || !DiscomApp.State.user.id) return; 
-    DiscomApp.DB.setSyncStatus('syncing');
+    if (!supabaseClient || !DiscomApp.State.user.isLoggedIn || !DiscomApp.State.user.id) return; DiscomApp.DB.setSyncStatus('syncing');
     try {
         const { data: metaData } = await supabaseClient.from('survey_data').select('data').eq('user_id', DiscomApp.State.user.id);
         if(metaData && metaData.length > 0) { const cd = metaData[0].data; DiscomApp.State.gssNodes = cd.gssNodes || {}; DiscomApp.State.settings = { ...DiscomApp.State.settings, ...(cd.settings || {}) }; DiscomApp.State.filters = cd.filters || DiscomApp.State.filters; DiscomApp.State.currentFeederCode = cd.currentFeederCode || null; }
-        
         const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', DiscomApp.State.user.id); if(!DiscomApp.State.feeders) DiscomApp.State.feeders = {};
         if(feedersData) { feedersData.forEach(f => { if(!DiscomApp.State.feeders[f.code]) DiscomApp.State.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; }); }
-        
         const { data: objData } = await supabaseClient.from('survey_objects').select('*').eq('user_id', DiscomApp.State.user.id);
         if(objData) { 
             objData.forEach(row => { 
                 const fCode = row.feeder_code; 
-                
-                // CONFLICT FIX 1: Agar koi object local mein Delete kiya gaya hai, par abhi tak sync nahi hua h, 
-                // toh use cloud se wapas fetch karke zinda (resurrect) mat karo.
-                if (DiscomApp.State.deletedObjectIds && DiscomApp.State.deletedObjectIds.includes(row.id)) {
-                    return; 
-                }
-
+                if (DiscomApp.State.deletedObjectIds && DiscomApp.State.deletedObjectIds.includes(row.id)) return;
                 if(DiscomApp.State.feeders[fCode]) { 
                     const type = row.object_type; let targetArray = null;
                     if(type === 'POLE') { if(!DiscomApp.State.feeders[fCode].poles) DiscomApp.State.feeders[fCode].poles = []; targetArray = DiscomApp.State.feeders[fCode].poles; }
                     else if(type === 'DT') { if(!DiscomApp.State.feeders[fCode].dts) DiscomApp.State.feeders[fCode].dts = []; targetArray = DiscomApp.State.feeders[fCode].dts; }
                     else if(type === 'LINE') { if(!DiscomApp.State.feeders[fCode].lines) DiscomApp.State.feeders[fCode].lines = []; targetArray = DiscomApp.State.feeders[fCode].lines; }
                     else if(type === 'CONSUMER') { if(!DiscomApp.State.feeders[fCode].consumers) DiscomApp.State.feeders[fCode].consumers = []; targetArray = DiscomApp.State.feeders[fCode].consumers; }
-                    
                     if (targetArray) {
                         const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
                         if (existingObjIndex > -1) {
                             const localObj = targetArray[existingObjIndex];
-                            
-                            // CONFLICT FIX 2: Agar user ne local mein object Move ya Edit kiya hai aur wo 'synced: false' hai,
-                            // toh use Cloud ke purane data se OVERWRITE hone se roko. Local changes ko priority do.
-                            if (localObj.synced === false) {
-                                return;
-                            }
-
+                            if (localObj.synced === false) return;
                             const cloudTime = row.details.updatedAt || 0, localTime = localObj.updatedAt || 0;
                             if (cloudTime > localTime) { row.details.synced = true; targetArray[existingObjIndex] = row.details; } 
                             else { targetArray[existingObjIndex].synced = true; }
-                        } else { 
-                            row.details.synced = true; targetArray.push(row.details); 
-                        }
+                        } else { row.details.synced = true; targetArray.push(row.details); }
                     }
                 } 
             }); 
         }
-        
-        await DiscomApp.DB.saveLocalData(); 
-        if(DiscomApp.UI.applyTranslations) DiscomApp.UI.applyTranslations(); 
-        if(DiscomApp.UI.applyTheme) DiscomApp.UI.applyTheme(); 
-        if(map) map.invalidateSize(); 
-        
-        if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
-        if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
-        DiscomApp.DB.setSyncStatus('synced'); 
-        
-        if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
-        DiscomApp.DB.updateUnsyncedBadge();
-        
-    } catch (err) { 
-        console.error("Sync pull error:", err); 
-        DiscomApp.DB.setSyncStatus('offline'); 
-        DiscomApp.DB.updateUnsyncedBadge(); 
-    }
+        await DiscomApp.DB.saveLocalData(); DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); if(map) map.invalidateSize(); 
+        DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.updateFeederDropdown(); DiscomApp.DB.setSyncStatus('synced'); 
+        if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); DiscomApp.DB.updateUnsyncedBadge();
+    } catch (err) { console.error("Sync pull error:", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
 };
-
 
 DiscomApp.DB.syncTimeout = null;
 DiscomApp.DB.triggerPersistence = function() { 
@@ -163,5 +126,3 @@ DiscomApp.DB.getPhotoUrl = async function(id) { try { if(typeof localforage !== 
 window.addEventListener('online', () => { if(DiscomApp.State.settings.liveSync) { DiscomApp.UI.showToast("Back Online! Syncing..."); DiscomApp.DB.syncToSupabase(); } });
 window.addEventListener('offline', () => { DiscomApp.DB.setSyncStatus('offline'); DiscomApp.UI.showToast("Offline. Data saved locally."); });
 setInterval(() => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn && DiscomApp.State.settings.liveSync) DiscomApp.DB.pullFromSupabase(); }, 60000);
-document.addEventListener('resume', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Fetching updates..."); DiscomApp.DB.pullFromSupabase(); } }, false);
-window.addEventListener('DOMContentLoaded', () => { setTimeout(() => { const syncBtn = document.getElementById('sync-indicator'); if (syncBtn) { syncBtn.style.cursor = 'pointer'; syncBtn.addEventListener('click', () => { if (navigator.onLine && DiscomApp.State.user.isLoggedIn) { DiscomApp.UI.showToast("🔄 Manual Sync Started..."); DiscomApp.DB.syncToSupabase().then(() => DiscomApp.DB.pullFromSupabase()); } else { DiscomApp.UI.showToast("⚠️ You are offline!"); } }); } }, 2000); });
