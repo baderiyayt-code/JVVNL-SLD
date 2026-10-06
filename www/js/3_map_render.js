@@ -1,19 +1,7 @@
 /* --- js/3_map_render.js --- */
-
-DiscomApp.Map.calcDistance = function(lat1, lon1, lat2, lon2) { 
-    const R = 6371e3, p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180, dp = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180; 
-    const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; 
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
-};
-
-DiscomApp.Map.formatDistance = function(m) { 
-    return (DiscomApp.State.settings.unit === 'km') ? (m / 1000).toFixed(3) + ' KM' : m.toFixed(1) + ' M'; 
-};
-
-DiscomApp.Map.sortByDistance = function(nodes, lat, lng) { 
-    return (nodes||[]).slice().sort((a, b) => DiscomApp.Map.calcDistance(lat, lng, a.lat, a.lng) - DiscomApp.Map.calcDistance(lat, lng, b.lat, b.lng)); 
-};
-
+DiscomApp.Map.calcDistance = function(lat1, lon1, lat2, lon2) { const R = 6371e3, p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180, dp = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
+DiscomApp.Map.formatDistance = function(m) { return (DiscomApp.State.settings.unit === 'km') ? (m / 1000).toFixed(3) + ' KM' : m.toFixed(1) + ' M'; }
+DiscomApp.Map.sortByDistance = function(nodes, lat, lng) { return (nodes||[]).slice().sort((a, b) => DiscomApp.Map.calcDistance(lat, lng, a.lat, a.lng) - DiscomApp.Map.calcDistance(lat, lng, b.lat, b.lng)); }
 DiscomApp.Map.getOffsetCoords = function(coords, offsetMeters) {
     if(!coords || !coords[0] || !coords[1]) return coords;
     const lat1 = coords[0][0], lng1 = coords[0][1], lat2 = coords[1][0], lng2 = coords[1][1];
@@ -22,7 +10,6 @@ DiscomApp.Map.getOffsetCoords = function(coords, offsetMeters) {
     const dLng = ((-dy / len) * offsetMeters) / (111139 * Math.cos(lat1 * Math.PI / 180)), dLat = ((dx / len) * offsetMeters) / 111139;
     return [[lat1 + dLat, lng1 + dLng], [lat2 + dLat, lng2 + dLng]];
 };
-
 DiscomApp.Map.getNodeCoords = function(nodeId) { 
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return null; const idStr = String(nodeId);
     if (idStr.startsWith('GSS_')) { const code = idStr.replace('GSS_', ''); if (DiscomApp.State.gssNodes[code]) return { lat: DiscomApp.State.gssNodes[code].lat, lng: DiscomApp.State.gssNodes[code].lng }; }
@@ -33,12 +20,8 @@ DiscomApp.Map.getNodeCoords = function(nodeId) {
     if (DiscomApp.State.gssNodes[idStr]) return { lat: DiscomApp.State.gssNodes[idStr].lat, lng: DiscomApp.State.gssNodes[idStr].lng };
     if (idStr === 'GSS' || (net.feeder && idStr === net.feeder.code)) { const g = DiscomApp.State.gssNodes[net.feeder.parentGss]; if(g) return { lat: g.lat, lng: g.lng }; }
     return null; 
-};
-
-DiscomApp.Map.getDistStr = (lat, lng) => { 
-    if(!lat || !lng || isNaN(lat)) return ''; if(!map) return ''; 
-    const c = map.getCenter(); return DiscomApp.Map.formatDistance(DiscomApp.Map.calcDistance(c.lat, c.lng, lat, lng)); 
-};
+}
+DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return ''; if(!map) return ''; const c = map.getCenter(); return DiscomApp.Map.formatDistance(DiscomApp.Map.calcDistance(c.lat, c.lng, lat, lng)); };
 
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
@@ -83,7 +66,7 @@ DiscomApp.Map.initMapLayers = function() {
         poles: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), 
         consumers: useCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 19, maxClusterRadius: 40 }).addTo(map) : L.featureGroup().addTo(map) 
     };
-};
+}
 
 DiscomApp.Map.updateMapZoomClasses = function() {
     if(!map) return; const z = map.getZoom(), mapEl = document.getElementById('map'); 
@@ -91,14 +74,8 @@ DiscomApp.Map.updateMapZoomClasses = function() {
     if (z <= 18) mapEl.classList.add('hide-consumers'); if (z <= 17) mapEl.classList.add('hide-lt-poles'); if (z <= 16) mapEl.classList.add('hide-lt-lines'); if (z <= 15) mapEl.classList.add('hide-ht-poles'); if (z <= 14) mapEl.classList.add('hide-ht-lines'); if (z <= 13) mapEl.classList.add('hide-dt'); if (z <= 12) mapEl.classList.add('hide-gss'); 
     let scale = 1; if (z < 19) scale = Math.max(0.35, 1 - ((19 - z) * 0.15)); else if (z > 19) scale = Math.min(1.5, 1 + ((z - 19) * 0.2));
     document.documentElement.style.setProperty('--icon-scale', scale);
-};
-
-DiscomApp.Map.toggleMapLayer = function() { 
-    if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); 
-    currentTileIndex = (currentTileIndex + 1) % layerKeys.length; 
-    tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); 
-    document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; 
-};
+}
+DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
 
 DiscomApp.Map.centerMapOnGSS = function() { 
     if(!map) return; 
@@ -181,7 +158,7 @@ DiscomApp.Map.getLineSpec = function(type, phase, conductor) {
     const t = (type || '').toUpperCase(); const cond = (conductor || '').toUpperCase();
     if (t.includes('LT')) return { name: 'LT LINE', color: '#10b981', weight: 3, dash: null, filterKey: 'linesLT', lineClass: 'lt-line-path', strokeColor: '#000000' };
     let lineClass = 'ht-line-path'; let color = '#2563eb'; let weight = 3; let strokeColor = 'transparent'; 
-    if (cond.includes('UNDERGROUND') || cond.includes('UG')) { color = '#000000'; weight: 5; strokeColor = 'transparent'; lineClass = 'ug-line-path'; } 
+    if (cond.includes('UNDERGROUND') || cond.includes('UG')) { color = '#000000'; weight: 5; strokeColor: 'transparent'; lineClass = 'ug-line-path'; } 
     else if (phase === 'Three Phase') { lineClass = 'ryb-line-path'; color = '#2563eb'; }
     return { name: '11 KV LINE', color: color, weight: weight, dash: null, filterKey: 'lines11', lineClass: lineClass, strokeColor: strokeColor };
 };
@@ -288,40 +265,21 @@ DiscomApp.Map.renderEntireNetwork = function() {
     } catch(err) { console.error("Rendering error:", err); }
 };
 
-// --- FIX: ORPHAN LIST MODAL & ZOOM FUNCTIONALITY ---
 DiscomApp.Map.openOrphanListModal = function() {
     DiscomApp.Map.updateOrphanStatus();
     const net = DiscomApp.State.getActiveNetwork();
     if(!net) return alert("No active feeder!");
-
     let orphanItems = [];
     (net.poles || []).forEach(p => { if(DiscomApp.State.orphanPoleIds.has(p.id)) orphanItems.push({type: 'POLE', id: p.id, name: `Pole ${p.poleNo}`, lat: p.lat, lng: p.lng}); });
     (net.dts || []).forEach(d => { if(DiscomApp.State.orphanPoleIds.has(d.id)) orphanItems.push({type: 'DT', id: d.id, name: `DT ${d.code} (${d.rating}kVA)`, lat: d.lat, lng: d.lng}); });
-
-    if(orphanItems.length === 0) {
-        return alert("✅ Great! No orphan poles or DTs found. All connected to GSS.");
-    }
-
-    let listHtml = orphanItems.map((item, idx) => `
+    if(orphanItems.length === 0) return alert("✅ Great! No orphan poles or DTs found. All connected to GSS.");
+    let listHtml = orphanItems.map((item) => `
         <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-glass); padding:10px 12px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border); cursor:pointer;" onclick="DiscomApp.Map.zoomToOrphanObject('${item.type}', '${item.id}', ${item.lat}, ${item.lng})">
-            <div>
-                <b style="font-size:0.9rem; color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> ${item.name}</b><br>
-                <small style="color:var(--text-sub);">Lat: ${item.lat.toFixed(5)}, Lng: ${item.lng.toFixed(5)}</small>
-            </div>
+            <div><b style="font-size:0.9rem; color:#ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> ${item.name}</b><br><small style="color:var(--text-sub);">Lat: ${item.lat.toFixed(5)}, Lng: ${item.lng.toFixed(5)}</small></div>
             <button class="action-btn-sm bg" style="background:var(--accent); color:white;"><i class="fa-solid fa-location-crosshairs"></i></button>
         </div>
     `).join('');
-
-    DiscomApp.UI.openModal(`
-        <div class="sheet-head">
-            <div class="sheet-title" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i> Orphan Nodes (${orphanItems.length})</div>
-            <button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <p style="font-size:0.8rem; color:var(--text-sub); margin-bottom:12px;">Tap any orphan item to zoom directly to its location on the map:</p>
-        <div style="max-height:300px; overflow-y:auto; padding-right:4px;">
-            ${listHtml}
-        </div>
-    `);
+    DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title" style="color:#ef4444;"><i class="fa-solid fa-link-slash"></i> Orphan Nodes (${orphanItems.length})</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><p style="font-size:0.8rem; color:var(--text-sub); margin-bottom:12px;">Tap any orphan item to zoom directly to its location on the map:</p><div style="max-height:300px; overflow-y:auto; padding-right:4px;">${listHtml}</div>`);
 };
 
 DiscomApp.Map.zoomToOrphanObject = function(type, id, lat, lng) {
@@ -330,13 +288,8 @@ DiscomApp.Map.zoomToOrphanObject = function(type, id, lat, lng) {
         map.flyTo([lat, lng], 19, { animate: true, duration: 1 });
         setTimeout(() => {
             const net = DiscomApp.State.getActiveNetwork();
-            if(type === 'POLE') {
-                const p = (net.poles || []).find(x => x.id === id);
-                if(p) DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType}</b>`);
-            } else if(type === 'DT') {
-                const d = (net.dts || []).find(x => x.id === id);
-                if(d) DiscomApp.UI.openDTFromSVG(null, d.id);
-            }
+            if(type === 'POLE') { const p = (net.poles || []).find(x => x.id === id); if(p) DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType}</b>`); } 
+            else if(type === 'DT') { const d = (net.dts || []).find(x => x.id === id); if(d) DiscomApp.UI.openDTFromSVG(null, d.id); }
         }, 1100);
     }
 };
