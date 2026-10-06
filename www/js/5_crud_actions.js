@@ -136,19 +136,31 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     return true;
 };
 
+/* --- js/5_crud_actions.js mein saveNewLine function ko replace karein --- */
 window.networkValidatorWorker = new Worker('js/loop_worker.js');
 DiscomApp.CRUD.saveNewLine = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const type = document.getElementById('inpLineType').value, phase = document.getElementById('inpLinePhase') ? document.getElementById('inpLinePhase').value : '', cond = document.getElementById('inpConductor').value, fNode = document.getElementById('inpFromNode').value, tNode = document.getElementById('inpToNode').value;
     if(!fNode || !tNode || fNode === tNode) { alert("Invalid From/To nodes!"); return false; }
     if((net.lines||[]).some(l => (l.fromNode === fNode && l.toNode === tNode) || (l.fromNode === tNode && l.toNode === fNode))) { alert("This line route already exists!"); return false; }
+    
     DiscomApp.State.saveSnapshot();
-    const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode };
-    net.lines.push(newObj); DiscomApp.UI.showToast("⏳ Checking topology...");
+    const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode, updatedAt: Date.now() };
+    net.lines.push(newObj); 
+    
+    // Line turant draw kar do taaki worker background mein check kare
+    DiscomApp.Map.renderEntireNetwork();
+    
+    DiscomApp.UI.showToast("⏳ Checking topology...");
     const isLT = type && type.includes('LT');
     window.networkValidatorWorker.postMessage({ lines: net.lines, poles: net.poles, dts: net.dts, gssNodes: DiscomApp.State.gssNodes, feeder: net.feeder, networkType: isLT ? 'LT' : 'HT' });
+    
     window.networkValidatorWorker.onmessage = function(e) {
-        if (e.data.hasLoop) { net.lines.pop(); alert(e.data.message); } 
+        if (e.data.hasLoop) { 
+            net.lines.pop(); // Agar loop hai toh line hata do
+            DiscomApp.Map.renderEntireNetwork(); // MAP KO DOBARA RENDER KARO TAAKI LINE SCREEN SE HAT JAYE!
+            alert(e.data.message); 
+        } 
         else {
             if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
             DiscomApp.UI.showToast("✅ Line saved successfully!");
@@ -158,6 +170,7 @@ DiscomApp.CRUD.saveNewLine = function() {
     };
     return true;
 };
+
 
 DiscomApp.CRUD.saveNewDT = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
