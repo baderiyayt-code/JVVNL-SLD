@@ -71,13 +71,18 @@ DiscomApp.DB.syncToSupabase = async function() {
     } catch (err) { console.warn("Sync error", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
 };
 
+/* --- js/2_db_sync.js mein sirf is function ko replace karein --- */
+
 DiscomApp.DB.pullFromSupabase = async function() {
-    if (!supabaseClient || !DiscomApp.State.user.isLoggedIn || !DiscomApp.State.user.id) return; DiscomApp.DB.setSyncStatus('syncing');
+    if (!supabaseClient || !DiscomApp.State.user.isLoggedIn || !DiscomApp.State.user.id) return; 
+    DiscomApp.DB.setSyncStatus('syncing');
     try {
         const { data: metaData } = await supabaseClient.from('survey_data').select('data').eq('user_id', DiscomApp.State.user.id);
         if(metaData && metaData.length > 0) { const cd = metaData[0].data; DiscomApp.State.gssNodes = cd.gssNodes || {}; DiscomApp.State.settings = { ...DiscomApp.State.settings, ...(cd.settings || {}) }; DiscomApp.State.filters = cd.filters || DiscomApp.State.filters; DiscomApp.State.currentFeederCode = cd.currentFeederCode || null; }
+        
         const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', DiscomApp.State.user.id); if(!DiscomApp.State.feeders) DiscomApp.State.feeders = {};
         if(feedersData) { feedersData.forEach(f => { if(!DiscomApp.State.feeders[f.code]) DiscomApp.State.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; }); }
+        
         const { data: objData } = await supabaseClient.from('survey_objects').select('*').eq('user_id', DiscomApp.State.user.id);
         if(objData) { 
             objData.forEach(row => { 
@@ -88,6 +93,7 @@ DiscomApp.DB.pullFromSupabase = async function() {
                     else if(type === 'DT') { if(!DiscomApp.State.feeders[fCode].dts) DiscomApp.State.feeders[fCode].dts = []; targetArray = DiscomApp.State.feeders[fCode].dts; }
                     else if(type === 'LINE') { if(!DiscomApp.State.feeders[fCode].lines) DiscomApp.State.feeders[fCode].lines = []; targetArray = DiscomApp.State.feeders[fCode].lines; }
                     else if(type === 'CONSUMER') { if(!DiscomApp.State.feeders[fCode].consumers) DiscomApp.State.feeders[fCode].consumers = []; targetArray = DiscomApp.State.feeders[fCode].consumers; }
+                    
                     if (targetArray) {
                         const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
                         if (existingObjIndex > -1) {
@@ -100,11 +106,29 @@ DiscomApp.DB.pullFromSupabase = async function() {
                 } 
             }); 
         }
-        await DiscomApp.DB.saveLocalData(); DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); if(map) map.invalidateSize(); 
-        DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.updateFeederDropdown(); DiscomApp.DB.setSyncStatus('synced'); 
-        DiscomApp.Map.centerMapOnGSS(); DiscomApp.UI.checkOnboardingFlow(); DiscomApp.DB.updateUnsyncedBadge();
-    } catch (err) { console.error("Sync pull error:", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
+        
+        await DiscomApp.DB.saveLocalData(); 
+        if(DiscomApp.UI.applyTranslations) DiscomApp.UI.applyTranslations(); 
+        if(DiscomApp.UI.applyTheme) DiscomApp.UI.applyTheme(); 
+        if(map) map.invalidateSize(); 
+        
+        if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
+        if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
+        DiscomApp.DB.setSyncStatus('synced'); 
+        
+        // FIX: Yahan se 'DiscomApp.Map.centerMapOnGSS()' hata diya gaya hai 
+        // taaki auto-sync hone par user ki current location disturb na ho.
+        
+        if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
+        DiscomApp.DB.updateUnsyncedBadge();
+        
+    } catch (err) { 
+        console.error("Sync pull error:", err); 
+        DiscomApp.DB.setSyncStatus('offline'); 
+        DiscomApp.DB.updateUnsyncedBadge(); 
+    }
 };
+
 
 DiscomApp.DB.syncTimeout = null;
 DiscomApp.DB.triggerPersistence = function() { 
