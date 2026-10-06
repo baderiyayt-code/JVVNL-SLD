@@ -97,20 +97,101 @@ window.syncToSupabase = async function() {
 }
 
 window.pullFromSupabase = async function() {
-    if (!supabaseClient || !appState.user.isLoggedIn || !appState.user.id) return; window.setSyncStatus('syncing');
+    if (!supabaseClient || !appState.user.isLoggedIn || !appState.user.id) return; 
+    window.setSyncStatus('syncing');
+    
     try {
+        // 1. Fetch Meta Data (Settings, GSS, etc.)
         const { data: metaData } = await supabaseClient.from('survey_data').select('data').eq('user_id', appState.user.id);
-        if(metaData && metaData.length > 0) { const cd = metaData[0].data; appState.gssNodes = cd.gssNodes || {}; appState.settings = { ...appState.settings, ...(cd.settings || {}) }; appState.filters = cd.filters || appState.filters; appState.currentFeederCode = cd.currentFeederCode || null; }
-        const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', appState.user.id); appState.feeders = {};
-        if(feedersData) { feedersData.forEach(f => { appState.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; }); }
+        if(metaData && metaData.length > 0) { 
+            const cd = metaData[0].data; 
+            appState.gssNodes = cd.gssNodes || {}; 
+            appState.settings = { ...appState.settings, ...(cd.settings || {}) }; 
+            appState.filters = cd.filters || appState.filters; 
+            appState.currentFeederCode = cd.currentFeederCode || null; 
+        }
+
+        // 2. Fetch Feeders
+        const { data: feedersData } = await supabaseClient.from('feeders').select('*').eq('user_id', appState.user.id); 
+        if (!appState.feeders) appState.feeders = {};
+        if(feedersData) { 
+            feedersData.forEach(f => { 
+                if (!appState.feeders[f.code]) {
+                    appState.feeders[f.code] = { feeder: f.details, poles: [], dts: [], lines: [], consumers: [] }; 
+                }
+            }); 
+        }
+
+        // 3. Fetch Objects with SMART TIMESTAMP MERGE
         const { data: objData } = await supabaseClient.from('survey_objects').select('*').eq('user_id', appState.user.id);
-        if(objData) { objData.forEach(row => { const fCode = row.feeder_code; if(appState.feeders[fCode]) { row.details.synced = true; if(row.object_type === 'POLE') appState.feeders[fCode].poles.push(row.details); if(row.object_type === 'DT') appState.feeders[fCode].dts.push(row.details); if(row.object_type === 'LINE') appState.feeders[fCode].lines.push(row.details); if(row.object_type === 'CONSUMER') appState.feeders[fCode].consumers.push(row.details); } }); }
-        const { data: photoData } = await supabaseClient.from('object_photos').select('id, object_type, object_id, photo_url').eq('user_id', appState.user.id);
-        if(photoData) { appState.photos = photoData.map(p => ({ id: p.id, object_type: p.object_type, object_id: p.object_id, photo_url: p.photo_url, synced: true })); } else appState.photos = [];
+        
+        if(objData) { 
+            objData.forEach(row => { 
+                const fCode = row.feeder_code; 
+                if(appState.feeders[fCode]) { 
+                    const type = row.object_type;
+                    let targetArray = null;
+                    
+                    if(type === 'POLE') targetArray = appState.feeders[fCode].poles;
+                    else if(type === 'DT') targetArray = appState.feeders[fCode].dts;
+                    else if(type === 'LINE') targetArray = appState.feeders[fCode].lines;
+                    else if(type === 'CONSUMER') targetArray = appState.feeders[fCode].consumers;
+
+                    if (targetArray) {
+                        const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
+                        
+                        if (existingObjIndex > -1) {
+                            const existingObj = targetArray[existingObjIndex];
+                            
+                            // Conflict Resolution: Check who has the latest data
+                            const cloudTime = row.details.updatedAt || 0;
+                            const localTime = existingObj.updatedAt || 0;
+                            
+                            if (cloudTime > localTime) {
+                                // Cloud has newer data -> Overwrite local
+                                row.details.synced = true;
+                                targetArray[existingObjIndex] = row.details; 
+                            } else if (localTime > cloudTime) {
+                                // Local has newer data -> Keep local, flag for push
+                                existingObj.synced = false; 
+                            } else {
+                                // Both are same -> Just mark as synced
+                                existingObj.synced = true;
+                            }
+                        } else {
+                            // New object from cloud -> Add to local
+                            row.details.synced = true;
+                            targetArray.push(row.details);
+                        }
+                    }
+                } 
+            }); 
+        }
+
+        // 4. Update UI and Storage
         if(typeof localforage !== 'undefined') await localforage.setItem(DB_KEY, appState); 
-        window.applyTranslations(); window.applyTheme(); if(map) map.invalidateSize(); window.renderEntireNetwork(); window.updateFeederDropdown(); window.setSyncStatus('synced'); window.centerMapOnGSS(); window.checkOnboardingFlow(); window.updateUnsyncedBadge();
-    } catch (err) { console.error("Sync error:", err); window.setSyncStatus('offline'); if(map) map.invalidateSize(); window.checkOnboardingFlow(); window.updateUnsyncedBadge(); }
-}
+        else localStorage.setItem(DB_KEY, JSON.stringify(appState));
+        
+        if(window.applyTranslations) window.applyTranslations(); 
+        if(window.applyTheme) window.applyTheme(); 
+        if(map) map.invalidateSize(); 
+        
+        if(window.renderEntireNetwork) window.renderEntireNetwork(); 
+        if(window.updateFeederDropdown) window.updateFeederDropdown(); 
+        window.setSyncStatus('synced'); 
+        if(window.centerMapOnGSS) window.centerMapOnGSS(); 
+        if(window.checkOnboardingFlow) window.checkOnboardingFlow(); 
+        if(window.updateUnsyncedBadge) window.updateUnsyncedBadge();
+
+    } catch (err) { 
+        console.error("Sync pull error:", err); 
+        window.setSyncStatus('offline'); 
+        if(map) map.invalidateSize(); 
+        if(window.checkOnboardingFlow) window.checkOnboardingFlow(); 
+        if(window.updateUnsyncedBadge) window.updateUnsyncedBadge(); 
+    }
+};
+
 
 // ==========================================
 // DEBOUNCED SAVING & OFFLINE QUEUE SYSTEM
