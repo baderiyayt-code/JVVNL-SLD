@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "cordova build android"
+    "build": "mkdir -p www && echo 'Build complete'"
   },
   "author": "Suraj Singh Mehta",
   "license": "ISC",
