@@ -73,6 +73,8 @@ DiscomApp.DB.syncToSupabase = async function() {
 
 /* --- js/2_db_sync.js mein sirf is function ko replace karein --- */
 
+/* --- js/2_db_sync.js mein sirf is function ko replace karein --- */
+
 DiscomApp.DB.pullFromSupabase = async function() {
     if (!supabaseClient || !DiscomApp.State.user.isLoggedIn || !DiscomApp.State.user.id) return; 
     DiscomApp.DB.setSyncStatus('syncing');
@@ -87,6 +89,13 @@ DiscomApp.DB.pullFromSupabase = async function() {
         if(objData) { 
             objData.forEach(row => { 
                 const fCode = row.feeder_code; 
+                
+                // CONFLICT FIX 1: Agar koi object local mein Delete kiya gaya hai, par abhi tak sync nahi hua h, 
+                // toh use cloud se wapas fetch karke zinda (resurrect) mat karo.
+                if (DiscomApp.State.deletedObjectIds && DiscomApp.State.deletedObjectIds.includes(row.id)) {
+                    return; 
+                }
+
                 if(DiscomApp.State.feeders[fCode]) { 
                     const type = row.object_type; let targetArray = null;
                     if(type === 'POLE') { if(!DiscomApp.State.feeders[fCode].poles) DiscomApp.State.feeders[fCode].poles = []; targetArray = DiscomApp.State.feeders[fCode].poles; }
@@ -97,11 +106,20 @@ DiscomApp.DB.pullFromSupabase = async function() {
                     if (targetArray) {
                         const existingObjIndex = targetArray.findIndex(x => x.id === row.id);
                         if (existingObjIndex > -1) {
-                            const cloudTime = row.details.updatedAt || 0, localTime = targetArray[existingObjIndex].updatedAt || 0;
+                            const localObj = targetArray[existingObjIndex];
+                            
+                            // CONFLICT FIX 2: Agar user ne local mein object Move ya Edit kiya hai aur wo 'synced: false' hai,
+                            // toh use Cloud ke purane data se OVERWRITE hone se roko. Local changes ko priority do.
+                            if (localObj.synced === false) {
+                                return;
+                            }
+
+                            const cloudTime = row.details.updatedAt || 0, localTime = localObj.updatedAt || 0;
                             if (cloudTime > localTime) { row.details.synced = true; targetArray[existingObjIndex] = row.details; } 
-                            else if (localTime > cloudTime) { targetArray[existingObjIndex].synced = false; } 
                             else { targetArray[existingObjIndex].synced = true; }
-                        } else { row.details.synced = true; targetArray.push(row.details); }
+                        } else { 
+                            row.details.synced = true; targetArray.push(row.details); 
+                        }
                     }
                 } 
             }); 
@@ -115,9 +133,6 @@ DiscomApp.DB.pullFromSupabase = async function() {
         if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
         if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         DiscomApp.DB.setSyncStatus('synced'); 
-        
-        // FIX: Yahan se 'DiscomApp.Map.centerMapOnGSS()' hata diya gaya hai 
-        // taaki auto-sync hone par user ki current location disturb na ho.
         
         if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
         DiscomApp.DB.updateUnsyncedBadge();
