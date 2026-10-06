@@ -42,15 +42,9 @@ DiscomApp.Map.initMapLayers = function() {
             }
         }
     });
-        // FIX: Added missing Google Street Map Layer
-    tileLayers = { 
-        osm: { name: 'OpenStreetMap', layer: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22 }) }, 
-        street: { name: 'Google Street Map', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22 }) },
-        hybrid: { name: 'Google Hybrid', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22 }) } 
-    };
-    layerKeys = Object.keys(tileLayers); 
-    tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
-
+    tileLayers = { osm: { name: 'OpenStreetMap', layer: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22 }) }, hybrid: { name: 'Google Hybrid', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22 }) } };
+    layerKeys = Object.keys(tileLayers); tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
+    
     featureGroups = { 
         gss: L.featureGroup().addTo(map), lines: L.featureGroup().addTo(map), consumerLines: L.featureGroup().addTo(map), dts: L.featureGroup().addTo(map), 
         poles: (typeof L.markerClusterGroup !== 'undefined') ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), 
@@ -66,86 +60,7 @@ DiscomApp.Map.updateMapZoomClasses = function() {
     document.documentElement.style.setProperty('--icon-scale', scale);
 }
 DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
-DiscomApp.Map.centerMapOnGSS = function() { 
-    // FIX: Safely return if map is not initialized yet (prevents login block)
-    if(typeof map === 'undefined' || !map) return; 
-    
-    setTimeout(() => {
-        try {
-            map.invalidateSize(); 
-            const net = DiscomApp.State.getActiveNetwork(); 
-            if(!net) return; 
-            
-            let latestObj = null;
-            let maxTime = 0;
-
-            const checkArray = (arr) => {
-                (arr || []).forEach(item => {
-                    if (item && typeof item.lat === 'number' && !isNaN(item.lat)) {
-                        let time = item.updatedAt || 0;
-                        if (time === 0 && item.id) {
-                            const match = String(item.id).match(/\d{13}/);
-                            if (match) time = parseInt(match[0]);
-                        }
-                        if (time > maxTime) {
-                            maxTime = time;
-                            latestObj = item;
-                        }
-                    }
-                });
-            };
-
-            checkArray(net.poles);
-            checkArray(net.dts);
-            checkArray(net.consumers);
-
-            if (latestObj) {
-                map.flyTo([latestObj.lat, latestObj.lng], 19, {animate: true, duration: 1}); 
-            } else {
-                const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; 
-                if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) {
-                    map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); 
-                }
-            }
-        } catch(e) {
-            console.error("Auto-zoom error:", e);
-        }
-    }, 400); 
-};
-
-        // Poles, DTs aur Consumers me latest object check karein
-        checkArray(net.poles);
-        checkArray(net.dts);
-        checkArray(net.consumers);
-
-        if (latestObj) {
-            // Agar koi object milta hai, to seedha uspar Auto-Zoom (Zoom level 19)
-            map.flyTo([latestObj.lat, latestObj.lng], 19, {animate: true, duration: 1}); 
-        } else {
-            // Agar feeder naya hai aur poora khali hai, tabhi GSS par jayega (Zoom level 17)
-            const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; 
-            if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) {
-                map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); 
-            }
-        }
-    }, 400); 
-};
-
-    
-    // FIX: Timeout added so map renders properly before zooming
-    setTimeout(() => {
-        map.invalidateSize(); 
-        const net = DiscomApp.State.getActiveNetwork(); 
-        if(!net) return; 
-        const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; 
-        
-        if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) {
-            // FIX: Using flyTo instead of setView for a smooth forced zoom
-            map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); 
-        }
-    }, 400); 
-};
-
+DiscomApp.Map.centerMapOnGSS = function() { if(!map) return; map.invalidateSize(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) map.setView([gss.lat, gss.lng], 16, {animate: false}); };
 
 DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
     const strokeC = isOrphan ? '#ef4444' : '#475569', fillC = isOrphan ? '#fca5a5' : '#fb923c'; 
