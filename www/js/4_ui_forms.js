@@ -1,22 +1,24 @@
 /* --- js/4_ui_forms.js --- */
-
-// --- LOGIN / SIGNUP UI LOGIC (MISSING FUNCTIONS FIX) ---
 DiscomApp.UI.toggleAuthMode = function() { 
-    authMode = authMode === 'login' ? 'signup' : 'login'; 
-    document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
-    document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; 
-    document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; 
-    document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
+    authMode = authMode === 'login' ? 'signup' : 'login'; document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
 };
 
 DiscomApp.UI.applyAuthUIVisuals = function() { 
-    document.getElementById('auth-screen').style.display = 'none'; 
-    document.getElementById('app-container').style.display = 'flex'; 
-    setTimeout(() => { if(map) map.invalidateSize(); }, 100); 
-    const uName = document.getElementById('userNameDisplay');
-    if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
+    document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; setTimeout(() => { if(map) map.invalidateSize(); }, 100); const uName = document.getElementById('userNameDisplay'); if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
 };
-// --------------------------------------------------------
+
+DiscomApp.UI.updateFeederDropdown = function() { 
+    const header = document.getElementById('activeFeederLabel'); if(!header) return; const keys = Object.keys(DiscomApp.State.feeders || {}); 
+    if(keys.length === 0) { header.innerText = 'No Feeder'; DiscomApp.State.currentFeederCode = null; } 
+    else { if(!DiscomApp.State.currentFeederCode || !DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]) DiscomApp.State.currentFeederCode = keys[0]; const currentFeeder = DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]; header.innerText = (currentFeeder && currentFeeder.feeder && currentFeeder.feeder.name) ? currentFeeder.feeder.name : 'Unnamed Feeder'; } 
+};
+
+DiscomApp.UI.checkOnboardingFlow = function() {
+    if(isSetupModalOpen) return;
+    if(Object.keys(DiscomApp.State.gssNodes || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Network Setup Required"; document.getElementById('onboarding-desc').innerText = "Please add your first GSS to begin mapping."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openAddGssModal(); }; } 
+    else if (Object.keys(DiscomApp.State.feeders || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Create Feeder"; document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openFeederConfigModal(); }; } 
+    else { document.getElementById('onboarding-overlay').style.display = 'none'; }
+};
 
 DiscomApp.UI.applyTranslations = function() {
     const lang = DiscomApp.State.settings.language || 'en';
@@ -47,49 +49,16 @@ DiscomApp.UI.closeModal = function() { document.getElementById('formModalOverlay
 
 DiscomApp.UI.isSavingData = false; 
 DiscomApp.UI.executeSafeSave = function(actionFn) {
-    if(DiscomApp.UI.isSavingData) return; DiscomApp.UI.isSavingData = true;
-    let hasError = false; const origAlert = window.alert; window.alert = function(msg) { hasError = true; origAlert(msg); };
+    if(DiscomApp.UI.isSavingData) return; DiscomApp.UI.isSavingData = true; let hasError = false; const origAlert = window.alert; window.alert = function(msg) { hasError = true; origAlert(msg); };
     try { const result = actionFn(); if(result === false) hasError = true; } catch(e) { hasError = true; console.error("Save Error:", e); }
-    window.alert = origAlert;
-    if(!hasError) DiscomApp.UI.closeModal(); 
-    setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
+    window.alert = origAlert; if(!hasError) DiscomApp.UI.closeModal(); setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
 };
 
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); }
 document.addEventListener('click', function(e) { const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } });
 DiscomApp.UI.toggleSidebar = function(open) { document.getElementById('sidebar-drawer').classList.toggle('open', open); document.getElementById('sidebarBackdrop').classList.toggle('open', open); if(open) { DiscomApp.UI.renderGssSidebarList(); DiscomApp.UI.renderFeederSidebarList(); } }
-
-// --- TOGGLE FOLDERS  ---
-DiscomApp.UI.toggleGssFolder = function() { 
-    const content = document.getElementById('gssFolderContent'), icon = document.getElementById('gssFolderIcon'); 
-    if (!content) return; 
-    const isHidden = content.style.display === 'none'; 
-    content.style.display = isHidden ? 'block' : 'none'; 
-    if(icon) icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'; 
-    if (isHidden) DiscomApp.UI.renderGssSidebarList(); 
-};
-
-DiscomApp.UI.toggleFeederFolder = function() { 
-    const content = document.getElementById('feederFolderContent'), icon = document.getElementById('feederFolderIcon'); 
-    if (!content) return; 
-    const isHidden = content.style.display === 'none'; 
-    content.style.display = isHidden ? 'block' : 'none'; 
-    if(icon) icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'; 
-    if (isHidden) DiscomApp.UI.renderFeederSidebarList(); 
-};
-
-// --- SETTINGS ---
-DiscomApp.UI.openSettingsPage = function() { 
-    DiscomApp.UI.toggleSidebar(false); 
-    if(document.getElementById('setUnit')) document.getElementById('setUnit').value = DiscomApp.State.settings.unit || 'm'; 
-    if(document.getElementById('setLanguage')) document.getElementById('setLanguage').value = DiscomApp.State.settings.language || 'en'; 
-    if(document.getElementById('setTheme')) document.getElementById('setTheme').value = DiscomApp.State.settings.theme || 'light'; 
-    if(document.getElementById('setLiveSync')) document.getElementById('setLiveSync').checked = DiscomApp.State.settings.liveSync !== false; 
-    
-    const settingsPage = document.getElementById('settings-page');
-    if(settingsPage) settingsPage.classList.add('open'); 
-};
-
+DiscomApp.UI.toggleGssFolder = function() { const content = document.getElementById('gssFolderContent'), icon = document.getElementById('gssFolderIcon'); if (!content) return; const isHidden = content.style.display === 'none'; content.style.display = isHidden ? 'block' : 'none'; if(icon) icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'; if (isHidden) DiscomApp.UI.renderGssSidebarList(); };
+DiscomApp.UI.toggleFeederFolder = function() { const content = document.getElementById('feederFolderContent'), icon = document.getElementById('feederFolderIcon'); if (!content) return; const isHidden = content.style.display === 'none'; content.style.display = isHidden ? 'block' : 'none'; if(icon) icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'; if (isHidden) DiscomApp.UI.renderFeederSidebarList(); };
 
 DiscomApp.UI.renderGssSidebarList = function() { const container = document.getElementById('gssListContainer'); if (!container) return; let html = ''; Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => { html += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-glass); padding:8px; border-radius:6px; margin-top:6px; border:1px solid var(--border);"><div><b style="font-size:0.85rem;">${gss.name}</b><br><small style="color:var(--text-sub);">Code: ${gss.code}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="DiscomApp.CRUD.relocateGss('${gss.code}')" title="Relocate GSS"><i class="fa-solid fa-location-crosshairs"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="DiscomApp.CRUD.deleteGssAndFeederStrict('${gss.code}')" title="Strict Delete"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
 DiscomApp.UI.renderFeederSidebarList = function() { const container = document.getElementById('feederListContainer'); if (!container) return; let html = ''; Object.keys(DiscomApp.State.feeders || {}).forEach(fCode => { const f = DiscomApp.State.feeders[fCode].feeder; const isActive = DiscomApp.State.currentFeederCode === fCode; const bgClass = isActive ? 'background:rgba(37,99,235,0.1); border-left:4px solid var(--accent);' : 'background:var(--bg-glass); border:1px solid var(--border);'; html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:6px; margin-top:6px; ${bgClass}" onclick="DiscomApp.State.switchFeeder('${fCode}')"><div style="cursor:pointer; width: 100%;"><b style="font-size:0.85rem; color:var(--text-main);">${f.name}</b><br><small style="color:var(--text-sub);">GSS: ${f.parentGss}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="event.stopPropagation(); DiscomApp.UI.openEditFeederModal('${fCode}')"><i class="fa-solid fa-pen"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="event.stopPropagation(); DiscomApp.CRUD.deleteFeederStrict('${fCode}')"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
@@ -99,7 +68,7 @@ DiscomApp.UI.openEditFeederModal = function(code) { DiscomApp.UI.toggleSidebar(f
 DiscomApp.UI.openAddGssModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-plus-circle"></i> Add New GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="inpGssCode" class="form-input" placeholder=" "><label>GSS Code*</label></div><div class="form-row"><input type="text" id="inpGssName" class="form-input" placeholder=" "><label>GSS Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewGss()">Save GSS</button>`); };
 
 DiscomApp.UI.autoSaveSettings = function() { DiscomApp.State.settings.unit = document.getElementById('setUnit').value; DiscomApp.State.settings.language = document.getElementById('setLanguage').value; DiscomApp.State.settings.theme = document.getElementById('setTheme').value; DiscomApp.State.settings.liveSync = document.getElementById('setLiveSync').checked; DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); DiscomApp.DB.triggerPersistence(); DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.showToast("Settings Saved!"); }
-DiscomApp.UI.openSettingsPage = function() { DiscomApp.UI.toggleSidebar(false); document.getElementById('setUnit').value = DiscomApp.State.settings.unit || 'm'; document.getElementById('setLanguage').value = DiscomApp.State.settings.language || 'en'; document.getElementById('setTheme').value = DiscomApp.State.settings.theme || 'light'; document.getElementById('setLiveSync').checked = DiscomApp.State.settings.liveSync !== false; document.getElementById('settings-page').classList.add('open'); }
+DiscomApp.UI.openSettingsPage = function() { DiscomApp.UI.toggleSidebar(false); if(document.getElementById('setUnit')) document.getElementById('setUnit').value = DiscomApp.State.settings.unit || 'm'; if(document.getElementById('setLanguage')) document.getElementById('setLanguage').value = DiscomApp.State.settings.language || 'en'; if(document.getElementById('setTheme')) document.getElementById('setTheme').value = DiscomApp.State.settings.theme || 'light'; if(document.getElementById('setLiveSync')) document.getElementById('setLiveSync').checked = DiscomApp.State.settings.liveSync !== false; const sp = document.getElementById('settings-page'); if(sp) sp.classList.add('open'); }
 DiscomApp.UI.closeSettingsPage = function() { document.getElementById('settings-page').classList.remove('open'); }
 DiscomApp.UI.openAboutModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-circle-info" style="color:#3b82f6;"></i> About App</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div style="text-align: center; padding: 10px 0 20px 0;"><div style="width: 64px; height: 64px; background: var(--accent); color: white; font-size: 32px; border-radius: 16px; display: flex; align-items:center; justify-content:center; margin: 0 auto 15px auto; box-shadow: 0 8px 20px rgba(37,99,235,0.3);"><i class="fa-solid fa-bolt"></i></div><h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main); margin-bottom: 5px;">DISCOM Survey Pro</h3><p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 20px;">Professional GIS-based field survey mobile application.</p></div>`); };
 DiscomApp.UI.openFilterModal = function() { const f = DiscomApp.State.filters; DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-filter" style="color:#d97706;"></i> Object Filter</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="capsule-filter-group"><label class="capsule"><input type="checkbox" id="flt11" ${f.lines11?'checked':''}><span>11 KV Line</span></label><label class="capsule"><input type="checkbox" id="fltLT" ${f.linesLT?'checked':''}><span>LT Line</span></label><label class="capsule"><input type="checkbox" id="fltPoles" ${f.poles?'checked':''}><span>Poles</span></label><label class="capsule"><input type="checkbox" id="fltDTs" ${f.dts?'checked':''}><span>DT</span></label><label class="capsule"><input type="checkbox" id="fltCons" ${f.consumers?'checked':''}><span>Consumers</span></label></div><button class="btn-action-primary" onclick="DiscomApp.UI.saveFilters()" style="margin-top:20px;">Apply Filters</button>`); }
@@ -159,7 +128,6 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
             </div>
         </div>
     `);
-    
     const photoUrlPromise = DiscomApp.DB.getPhotoUrl(d.id);
     const imgEl = document.getElementById('objPhotoImg'), placeholderEl = document.getElementById('objPhotoPlaceholder');
     const applyPhoto = (url) => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; placeholderEl.style.display = 'none'; } };
