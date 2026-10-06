@@ -1,5 +1,4 @@
 /* --- js/3_map_render.js --- */
-
 DiscomApp.Map.calcDistance = function(lat1, lon1, lat2, lon2) { const R = 6371e3, p1 = lat1 * Math.PI / 180, p2 = lat2 * Math.PI / 180, dp = (lat2 - lat1) * Math.PI / 180, dl = (lon2 - lon1) * Math.PI / 180; const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2; return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); }
 DiscomApp.Map.formatDistance = function(m) { return (DiscomApp.State.settings.unit === 'km') ? (m / 1000).toFixed(3) + ' KM' : m.toFixed(1) + ' M'; }
 DiscomApp.Map.sortByDistance = function(nodes, lat, lng) { return (nodes||[]).slice().sort((a, b) => DiscomApp.Map.calcDistance(lat, lng, a.lat, a.lng) - DiscomApp.Map.calcDistance(lat, lng, b.lat, b.lng)); }
@@ -42,20 +41,9 @@ DiscomApp.Map.initMapLayers = function() {
             }
         }
     });
-        // Map Layer
-    tileLayers = { 
-        osm: { name: 'OpenStreetMap', layer: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22 }) }, 
-        street: { name: 'Google Street Map', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22 }) },
-        hybrid: { name: 'Google Hybrid', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22 }) } 
-    };
-    layerKeys = Object.keys(tileLayers); 
-    tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
-
-    featureGroups = { 
-        gss: L.featureGroup().addTo(map), lines: L.featureGroup().addTo(map), consumerLines: L.featureGroup().addTo(map), dts: L.featureGroup().addTo(map), 
-        poles: (typeof L.markerClusterGroup !== 'undefined') ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), 
-        consumers: (typeof L.markerClusterGroup !== 'undefined') ? L.markerClusterGroup({ disableClusteringAtZoom: 19, maxClusterRadius: 40 }).addTo(map) : L.featureGroup().addTo(map) 
-    };
+    tileLayers = { osm: { name: 'OpenStreetMap', layer: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 22 }) }, street: { name: 'Google Street Map', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 22 }) }, hybrid: { name: 'Google Hybrid', layer: L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 22 }) } };
+    layerKeys = Object.keys(tileLayers); tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
+    featureGroups = { gss: L.featureGroup().addTo(map), lines: L.featureGroup().addTo(map), consumerLines: L.featureGroup().addTo(map), dts: L.featureGroup().addTo(map), poles: (typeof L.markerClusterGroup !== 'undefined') ? L.markerClusterGroup({ disableClusteringAtZoom: 18, maxClusterRadius: 50 }).addTo(map) : L.featureGroup().addTo(map), consumers: (typeof L.markerClusterGroup !== 'undefined') ? L.markerClusterGroup({ disableClusteringAtZoom: 19, maxClusterRadius: 40 }).addTo(map) : L.featureGroup().addTo(map) };
 }
 
 DiscomApp.Map.updateMapZoomClasses = function() {
@@ -66,7 +54,10 @@ DiscomApp.Map.updateMapZoomClasses = function() {
     document.documentElement.style.setProperty('--icon-scale', scale);
 }
 DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
-DiscomApp.Map.centerMapOnGSS = function() { if(!map) return; map.invalidateSize(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) map.setView([gss.lat, gss.lng], 16, {animate: false}); };
+DiscomApp.Map.centerMapOnGSS = function() { 
+    if(!map) return; 
+    setTimeout(() => { map.invalidateSize(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const gss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (gss && typeof gss.lat === 'number' && !isNaN(gss.lat)) map.flyTo([gss.lat, gss.lng], 17, {animate: true, duration: 1}); }, 400); 
+};
 
 DiscomApp.Map.getPoleWithDTHTML = function(p, associatedDTs, isOrphan) {
     const strokeC = isOrphan ? '#ef4444' : '#475569', fillC = isOrphan ? '#fca5a5' : '#fb923c'; 
@@ -115,8 +106,9 @@ DiscomApp.Map.getLineSpec = function(type, phase, conductor) {
 }
 
 DiscomApp.Map.updateOrphanStatus = function() {
-    if(!DiscomApp.State.orphanPoleIds) DiscomApp.State.orphanPoleIds = new Set();
-    DiscomApp.State.orphanPoleIds.clear(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return; 
+    if(!DiscomApp.State.orphanPoleIds || !(DiscomApp.State.orphanPoleIds instanceof Set)) DiscomApp.State.orphanPoleIds = new Set();
+    DiscomApp.State.orphanPoleIds.clear(); const net = DiscomApp.State.getActiveNetwork(); 
+    if(!net || !net.feeder || !net.feeder.parentGss) return; // FIX: Prevent crash if feeder is empty
     const adj = {}, gssCode = net.feeder.parentGss, gssId = 'GSS_' + gssCode; adj[gssId] = [];
     (net.poles||[]).forEach(p => adj['POLE_' + p.poleNo] = []); (net.dts||[]).forEach(d => adj['DT_' + d.code] = []);
     (net.dts||[]).forEach(d => { if(d.parentPole) { const pId = 'POLE_' + d.parentPole; if (!adj[pId]) adj[pId] = []; adj[pId].push('DT_' + d.code); adj['DT_' + d.code].push(pId); } });
@@ -153,7 +145,7 @@ DiscomApp.Map.renderEntireNetwork = function() {
         DiscomApp.Map.updateOrphanStatus(); Object.values(featureGroups).forEach(g => g.clearLayers()); 
         Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => {
             if (typeof gss.lat === 'number' && !isNaN(gss.lat)) {
-                if (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === gss.code) return; 
+                if (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === gss.code) return; // FIX: SAFE VARIABLE
                 const gssSvg = `<div style="background:transparent; border:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%;"><svg viewBox="0 0 100 50" style="width:60px;height:30px; filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.6));"><rect x="2" y="2" width="96" height="46" rx="6" fill="#dc2626" stroke="#ffffff" stroke-width="4"/><text x="50" y="34" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif">GSS</text></svg></div>`;
                 const m = L.marker([gss.lat, gss.lng], { icon: L.divIcon({ className: 'gss-marker', html: gssSvg, iconSize: [60,30], iconAnchor: [30,15] }), zIndexOffset: 500 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('GSS', gss.code, gss.name, `Code: <b>${gss.code}</b>`); }); featureGroups.gss.addLayer(m);
@@ -163,15 +155,17 @@ DiscomApp.Map.renderEntireNetwork = function() {
         let poleDTMap = {}; (net.dts||[]).forEach(d => { if(d.parentPole) { if(!poleDTMap[String(d.parentPole)]) poleDTMap[String(d.parentPole)] = []; poleDTMap[String(d.parentPole)].push(d); } });
         if (f.poles && net.poles) {
             net.poles.forEach(p => {
-                if(!p || isNaN(p.lat) || isNaN(p.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === p.id)) return;
-                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], DiscomApp.State.orphanPoleIds.has(p.id)), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
+                if(!p || isNaN(p.lat) || isNaN(p.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === p.id)) return; // FIX: SAFE VARIABLE
+                const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(p.id) : false;
+                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType || 'HT'}</b><br>Config: <b>${p.poleType || 'Standard'}</b><br>Condition: <b>${p.condition||'Good'}</b>`); }); featureGroups.poles.addLayer(m);
             });
         }
         if (f.dts && net.dts) {
             net.dts.forEach(d => {
-                if(!d || !d.parentPole && d.lat && d.lng && !isNaN(d.lat) && !(DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === d.id)) {
-                    const m = L.marker([d.lat, d.lng], { icon: L.divIcon({ className: `dt-square-icon ${DiscomApp.State.orphanPoleIds.has(d.id) ? 'orphan-pulse' : ''}`, html: DiscomApp.Map.getDTSVG(d.phase, d.rating), iconSize: [34, 40], iconAnchor: [17, 20] }), zIndexOffset: 400 });
+                if(!d || !d.parentPole && d.lat && d.lng && !isNaN(d.lat) && !(DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === d.id)) { // FIX: SAFE VARIABLE
+                    const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(d.id) : false;
+                    const m = L.marker([d.lat, d.lng], { icon: L.divIcon({ className: `dt-square-icon ${isOrphan ? 'orphan-pulse' : ''}`, html: DiscomApp.Map.getDTSVG(d.phase, d.rating), iconSize: [34, 40], iconAnchor: [17, 20] }), zIndexOffset: 400 });
                     m.on('click', () => DiscomApp.UI.openDTFromSVG(null, d.id)); featureGroups.dts.addLayer(m);
                 }
             });
@@ -198,7 +192,7 @@ DiscomApp.Map.renderEntireNetwork = function() {
         }
         if (f.consumers && net.consumers) {
             net.consumers.forEach(c => {
-                if (!c || isNaN(c.lat) || isNaN(c.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === c.id)) return; 
+                if (!c || isNaN(c.lat) || isNaN(c.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === c.id)) return; // FIX: SAFE VARIABLE
                 const m = L.marker([c.lat + (Math.random() - 0.5)*0.00003, c.lng + (Math.random() - 0.5)*0.00003], { icon: L.divIcon({ className: 'consumer-marker-icon', html: DiscomApp.Map.getConsumerSVG(c.cType, c.status), iconSize: [34,34], iconAnchor: [17, 17] }), zIndexOffset: 100 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('CONSUMER', c.id, c.name, `Type: <b>${c.cType||'Domestic'}</b><br>Status: <b>${c.status||'Regular'}</b><br>K-No: <b>${c.kno}</b><br>Load: <b>${c.load||'N/A'}</b>`); }); featureGroups.consumers.addLayer(m);
                 let parentStr = c.parentType === 'DT' ? `DT_${c.parentRef}` : `POLE_${c.parentRef}`; const pCoords = DiscomApp.Map.getNodeCoords(parentStr);
