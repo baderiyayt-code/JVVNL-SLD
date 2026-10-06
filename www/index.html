@@ -77,9 +77,14 @@
         <div class="sidebar-header-gradient"><div style="display:flex; justify-content:space-between; align-items:center;"><div class="user-profile-img"><i class="fa-solid fa-user"></i></div><button class="sheet-close-btn" style="background:rgba(255,255,255,0.2); border:none; color:white;" onclick="DiscomApp.UI.toggleSidebar(false)"><i class="fa-solid fa-times"></i></button></div><h3 style="margin-top:10px; font-weight:800;" id="userNameDisplay">User Name</h3></div>
         <div class="sidebar-menu-list">
             <div class="menu-link-btn" onclick="DiscomApp.UI.openAddGssModal()"><i class="fa-solid fa-plus-circle" style="color:#3b82f6;"></i> Add New GSS</div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder</div><div id="gssFolderContent" style="display:none;" class="folder-content"><div id="gssListContainer"></div></div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.openFeederConfigModal()"><i class="fa-solid fa-plus-circle" style="color:#10b981;"></i> Add New Feeder</div>
-            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder</div><div id="feederFolderContent" style="display:none;" class="folder-content"><div id="feederListContainer"></div></div>
+            <div class="menu-link-btn" onclick="DiscomApp.UI.toggleGssFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> GSS Folder <i class="fa-solid fa-chevron-down" id="gssFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
+<div id="gssFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="gssListContainer"></div></div>
+
+<div class="menu-link-btn" onclick="DiscomApp.UI.openFeederConfigModal()"><i class="fa-solid fa-plus-circle" style="color:#10b981;"></i> Add New Feeder</div>
+
+<div class="menu-link-btn" onclick="DiscomApp.UI.toggleFeederFolder()"><i class="fa-solid fa-folder" style="color:#f59e0b;"></i> Feeder Folder <i class="fa-solid fa-chevron-down" id="feederFolderIcon" style="margin-left:auto; font-size:0.8rem;"></i></div>
+<div id="feederFolderContent" style="display:none; padding:10px; background:var(--bg-base); border-radius:8px;" class="folder-content"><div id="feederListContainer"></div></div>
+
             
             <div class="menu-category-title">Export</div>
             <div class="menu-link-btn" onclick="DiscomApp.Export.generateCadSLDPdf()"><i class="fa-solid fa-file-pdf"></i> SLD PDF</div>
