@@ -206,3 +206,32 @@ DiscomApp.Map.renderEntireNetwork = function() {
         if(document.getElementById('kpi11')) document.getElementById('kpi11').innerText = DiscomApp.Map.formatDistance(t11); if(document.getElementById('kpiLT')) document.getElementById('kpiLT').innerText = DiscomApp.Map.formatDistance(tLT); if(document.getElementById('kpi3Ph')) document.getElementById('kpi3Ph').innerText = dt3ph; if(document.getElementById('kpi1Ph')) document.getElementById('kpi1Ph').innerText = dt1ph; if(document.getElementById('kpiCons')) document.getElementById('kpiCons').innerText = (net.consumers||[]).length;
     } catch(err) { console.error("Rendering error:", err); }
 }
+/* --- js/3_map_render.js mein ye function jodein --- */
+DiscomApp.Map.centerMapOnLastObjectOrGSS = function() {
+    if(!map) return;
+    setTimeout(() => {
+        map.invalidateSize();
+        const net = DiscomApp.State.getActiveNetwork();
+        let latestObj = null;
+        let latestTime = 0;
+
+        if (net) {
+            const allObjs = [...(net.poles || []), ...(net.dts || []), ...(net.consumers || [])];
+            allObjs.forEach(o => {
+                const t = o.updatedAt || parseInt(o.id.split('_')[1]) || 0;
+                if (t > latestTime) {
+                    latestTime = t;
+                    latestObj = o;
+                }
+            });
+        }
+
+        // Agar koi naya/edited object mila toh wahan zoom karo, warna GSS par jao
+        if (latestObj && !isNaN(latestObj.lat)) {
+            map.flyTo([latestObj.lat, latestObj.lng], 19, { animate: true, duration: 1 });
+            if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("📍 Zoomed to last modified object");
+        } else {
+            DiscomApp.Map.centerMapOnGSS();
+        }
+    }, 400);
+};
