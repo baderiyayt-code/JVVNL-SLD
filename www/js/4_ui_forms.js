@@ -63,36 +63,16 @@ DiscomApp.UI.openModal = function(html) { document.getElementById('modalSheetCon
 DiscomApp.UI.closeModal = function() { document.getElementById('formModalOverlay').classList.remove('open'); const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; if(DiscomApp.State.user.isLoggedIn) { setTimeout(() => { if(typeof DiscomApp.UI.checkOnboardingFlow === 'function') DiscomApp.UI.checkOnboardingFlow(); }, 400); } };
 
 DiscomApp.UI.isSavingData = false; 
-/* --- js/4_ui_forms.js ke andar --- */
-
-DiscomApp.UI.isSavingData = false; 
-
 DiscomApp.UI.executeSafeSave = function(actionFn) {
-    if(DiscomApp.UI.isSavingData) return; 
-    DiscomApp.UI.isSavingData = true; 
-    let hasError = false; 
-    let isAsync = false; 
-    
-    const origAlert = window.alert; 
-    window.alert = function(msg) { hasError = true; origAlert(msg); };
-    
-    try { 
-        const result = actionFn(); 
-        if(result === false) hasError = true; 
-        if(result === 'ASYNC') isAsync = true; 
-    } catch(e) { 
-        hasError = true; console.error("Save Error:", e); 
-    }
-    
+    if(DiscomApp.UI.isSavingData) return; DiscomApp.UI.isSavingData = true; let hasError = false; let isAsync = false; 
+    const origAlert = window.alert; window.alert = function(msg) { hasError = true; origAlert(msg); };
+    try { const result = actionFn(); if(result === false) hasError = true; if(result === 'ASYNC') isAsync = true; } catch(e) { hasError = true; console.error("Save Error:", e); }
     window.alert = origAlert; 
-    
-    // Agar ASYNC task (jaise Line validation) hai, toh turant modal close ya map render mat karo
     if(!hasError && !isAsync) {
         DiscomApp.UI.closeModal(); 
         try { if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); } catch(e){ console.error(e); }
         try { if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); } catch(e){ console.error(e); }
     }
-    
     setTimeout(() => { DiscomApp.UI.isSavingData = false; }, 800); 
 };
 
@@ -141,11 +121,30 @@ DiscomApp.UI.clearSearch = function() { const bar = document.getElementById('app
 DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return; DiscomApp.UI.clearSearch(); DiscomApp.UI.toggleSearchBox(); let target = null, popupHtml = ''; if(type === 'CONSUMER') { target = net.consumers.find(c => c.id === id); if(target) popupHtml = `K-No: <b>${target.kno}</b>`; } else if(type === 'DT') { target = net.dts.find(d => d.id === id); if(target) popupHtml = `Rating: <b>${target.rating} kVA</b>`; } else if(type === 'POLE') { target = net.poles.find(p => p.id === id); if(target) popupHtml = `Type: <b>${target.lineType}</b>`; } if(target && target.lat) { if(map) map.flyTo([target.lat, target.lng], 19, { duration: 1 }); setTimeout(() => DiscomApp.UI.openObjectSheet(type, id, type === 'CONSUMER' ? target.name : (type === 'DT' ? `DT: ${target.code}` : `Pole: ${target.poleNo}`), popupHtml), 1000); } };
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
+// ==========================================
+// FIX: PHOTO CAPTURE & RENDERING LOGIC
+// ==========================================
+
+// 1. Opening an object sheet properly triggers DOM images by querySelectorAll
 DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml) {
-    currentSelectedObj = { type, id }; document.getElementById('objSheetTitle').innerText = title; document.getElementById('objSheetDetails').innerHTML = detailsHtml;
-    const imgEl = document.getElementById('objPhotoImg'), placeholderEl = document.getElementById('objPhotoPlaceholder');
-    const applyPhoto = (url) => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; placeholderEl.style.display = 'none'; } else { imgEl.style.display = 'none'; imgEl.src = ''; placeholderEl.style.display = 'flex'; } };
-    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(id); if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else applyPhoto(photoUrlPromise);
+    currentSelectedObj = { type, id }; 
+    document.getElementById('objSheetTitle').innerText = title; 
+    document.getElementById('objSheetDetails').innerHTML = detailsHtml;
+    
+    const applyPhoto = (url) => { 
+        document.querySelectorAll('#objPhotoImg').forEach(imgEl => {
+            if(url) { imgEl.src = url; imgEl.style.display = 'block'; } 
+            else { imgEl.style.display = 'none'; imgEl.src = ''; }
+        });
+        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => {
+            if(url) { placeholderEl.style.display = 'none'; } 
+            else { placeholderEl.style.display = 'flex'; }
+        });
+    };
+    
+    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(id); 
+    if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
+    
     document.getElementById('object-bottom-sheet').classList.add('open'); 
     document.getElementById('btnObjEdit').onclick = () => DiscomApp.UI.openEditModal(type.toLowerCase(), id);
     document.getElementById('btnObjDelete').style.display = (type === 'GSS') ? 'none' : 'block'; 
@@ -154,6 +153,7 @@ DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml) {
     document.getElementById('btnObjDelete').onclick = () => { DiscomApp.CRUD.deleteEntity(type.toLowerCase(), id); DiscomApp.UI.closeObjectSheet(); };
 };
 
+// 2. DT opening modal also perfectly syncs image rendering
 DiscomApp.UI.openDTFromSVG = function(e, id) {
     if(e) e.stopPropagation(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     const d = (net.dts||[]).find(x => x.id === id); if(!d) return; currentSelectedObj = { type: 'DT', id: d.id };
@@ -187,11 +187,97 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
             </div>
         </div>
     `);
+    
+    const applyPhoto = (url) => { 
+        document.querySelectorAll('#objPhotoImg').forEach(imgEl => {
+            if(url) { imgEl.src = url; imgEl.style.display = 'block'; }
+            else { imgEl.style.display = 'none'; imgEl.src = ''; }
+        });
+        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => {
+            if(url) { placeholderEl.style.display = 'none'; }
+            else { placeholderEl.style.display = 'flex'; }
+        });
+    };
     const photoUrlPromise = DiscomApp.DB.getPhotoUrl(d.id);
-    const imgEl = document.getElementById('objPhotoImg'), placeholderEl = document.getElementById('objPhotoPlaceholder');
-    const applyPhoto = (url) => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; placeholderEl.style.display = 'none'; } };
-    if(photoUrlPromise instanceof Promise) { photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
+    if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
 };
+
+// 3. Robust Camera/Gallery Fallback for WebView/App (Temporary Forms)
+DiscomApp.UI.captureTempPhoto = function() {
+    const processPhoto = (base64Data) => {
+        tempPhotoUrl = base64Data;
+        document.querySelectorAll('#formTempPhoto').forEach(imgEl => {
+            imgEl.src = tempPhotoUrl; 
+            imgEl.style.display = 'block';
+        });
+    };
+
+    if (window.cordova && navigator.camera) { 
+        navigator.camera.getPicture((imgData) => { 
+            processPhoto("data:image/jpeg;base64," + imgData); 
+        }, (err) => { 
+            console.warn("Camera cancelled: " + err); 
+        }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true });
+    } else { 
+        let input = document.createElement('input'); 
+        input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; 
+        input.style.display = 'none';
+        document.body.appendChild(input); // Appends to DOM to fix WebView bugs
+        input.onchange = e => { 
+            let file = e.target.files[0]; 
+            if(!file) { document.body.removeChild(input); return; }
+            let reader = new FileReader(); 
+            reader.onload = ev => { 
+                processPhoto(ev.target.result); 
+                document.body.removeChild(input); 
+            }; 
+            reader.readAsDataURL(file); 
+        }; 
+        input.click(); 
+    }
+};
+
+// 4. Robust Camera/Gallery Fallback for Already Existing Objects
+DiscomApp.UI.captureObjectPhoto = function() {
+    if(!currentSelectedObj) return alert("Error: Object not selected!"); 
+    const id = currentSelectedObj.id;
+    
+    const processPhoto = (base64Data) => { 
+        if(DiscomApp.DB.savePhotoData) DiscomApp.DB.savePhotoData(id, base64Data); 
+        document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; });
+        document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; });
+        DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); 
+    };
+    
+    if (window.cordova && navigator.camera) { 
+        navigator.camera.getPicture((imgData) => { 
+            processPhoto("data:image/jpeg;base64," + imgData); 
+        }, (err) => { 
+            console.warn("Camera cancelled: " + err); 
+        }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); 
+    } else { 
+        let input = document.createElement('input'); 
+        input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; 
+        input.style.display = 'none';
+        document.body.appendChild(input); // Appends to DOM to fix WebView bugs
+        input.onchange = e => { 
+            let file = e.target.files[0]; 
+            if(!file) { document.body.removeChild(input); return; }
+            let reader = new FileReader(); 
+            reader.onload = ev => { 
+                processPhoto(ev.target.result); 
+                document.body.removeChild(input); 
+            }; 
+            reader.readAsDataURL(file); 
+        }; 
+        input.click(); 
+    }
+};
+
+DiscomApp.UI.openFullScreenPhoto = function(src) { if(!src || src === '' || src === window.location.href) return; const viewer = document.getElementById('full-photo-viewer'), img = document.getElementById('full-photo-img'); if(viewer && img) { img.src = src; viewer.style.display = 'flex'; } };
+DiscomApp.UI.closeFullScreenPhoto = function() { const viewer = document.getElementById('full-photo-viewer'); if(viewer) viewer.style.display = 'none'; };
+
+// ==========================================
 
 DiscomApp.UI.togglePccConfig = function(id = 'inpMainPoleType', targetId = 'pccConfigDiv') { const pType = document.getElementById(id)?.value; const configDiv = document.getElementById(targetId); if(configDiv) configDiv.style.display = pType === 'PCC' ? 'block' : 'none'; };
 DiscomApp.UI.toggleLineConductor = function(id = 'inpLineType', targetId = 'inpConductor') { const lType = document.getElementById(id)?.value; const sel = document.getElementById(targetId); if(!sel) return; if(lType === '11 KV LINE') { sel.innerHTML = `<option value="Weasel">Weasel</option><option value="Rabbit">Rabbit</option><option value="Dog">Dog</option><option value="Underground Cable">Underground Cable</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'block'; } else { sel.innerHTML = `<option value="Single Phase">Single Phase</option><option value="Three Phase">Three Phase</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'none'; } };
@@ -238,63 +324,25 @@ DiscomApp.UI.filterConsumerPoles = function() {
 
 DiscomApp.UI.getCameraFormHtml = () => `<div style="margin-top:20px; margin-bottom:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;"><img id="formTempPhoto" src="" onclick="DiscomApp.UI.openFullScreenPhoto(this.src)" style="width:160px; height:160px; object-fit:cover; border-radius:12px; display:none; margin-bottom:15px; border:2px solid var(--accent); box-shadow:0 4px 8px rgba(0,0,0,0.15); cursor:pointer;"><button type="button" class="btn-action-primary" style="padding:12px 24px; background:#0f172a; margin:0; border-radius:8px; width:100%;" onclick="DiscomApp.UI.captureTempPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button></div>`;
 
-// --- MISSING PLACEMENT & FORM RENDERING LOGIC RESTORED HERE ---
-
 DiscomApp.UI.openAddForm = function(type) { 
     DiscomApp.UI.toggleSpeedDial(false); 
     if (type === 'POLE' || type === 'LTPOLE' || type === 'CONSUMER') { 
-        DiscomApp.State.placementType = type; 
-        document.getElementById('center-placement-pin').style.display = 'block'; 
-        document.getElementById('bottom-single-action').style.display = 'none'; 
-        
+        DiscomApp.State.placementType = type; document.getElementById('center-placement-pin').style.display = 'block'; document.getElementById('bottom-single-action').style.display = 'none'; 
         let confirmBar = document.getElementById('placement-confirm-bar'); 
-        if(!confirmBar) { 
-            confirmBar = document.createElement('div'); 
-            confirmBar.id = 'placement-confirm-bar'; 
-            confirmBar.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:10px; width:90%; max-width:400px; pointer-events:auto;'; 
-            confirmBar.innerHTML = `<button type="button" class="btn-danger-outline" style="background:white; margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.cancelPlacement(event)">Cancel</button><button type="button" class="btn-action-primary" style="margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.confirmPlacement(event)">Place Here</button>`; 
-            document.body.appendChild(confirmBar); 
-            if(typeof L !== 'undefined' && L.DomEvent) { L.DomEvent.disableClickPropagation(confirmBar); L.DomEvent.disableScrollPropagation(confirmBar); } 
-        }
+        if(!confirmBar) { confirmBar = document.createElement('div'); confirmBar.id = 'placement-confirm-bar'; confirmBar.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:10px; width:90%; max-width:400px; pointer-events:auto;'; confirmBar.innerHTML = `<button type="button" class="btn-danger-outline" style="background:white; margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.cancelPlacement(event)">Cancel</button><button type="button" class="btn-action-primary" style="margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.confirmPlacement(event)">Place Here</button>`; document.body.appendChild(confirmBar); if(typeof L !== 'undefined' && L.DomEvent) { L.DomEvent.disableClickPropagation(confirmBar); L.DomEvent.disableScrollPropagation(confirmBar); } }
         confirmBar.style.display = 'flex'; 
-    } else { 
-        DiscomApp.UI.showFormModal(type, null, null); 
-    } 
-};
+    } else { DiscomApp.UI.showFormModal(type, null, null); } 
+}
 
-DiscomApp.UI.confirmPlacement = function(e) { 
-    if(e){e.preventDefault(); e.stopPropagation();} 
-    document.getElementById('center-placement-pin').style.display = 'none'; 
-    const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; 
-    const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; 
-    document.getElementById('bottom-single-action').style.display = 'block'; 
-    const center = map.getCenter(); 
-    DiscomApp.UI.showFormModal(DiscomApp.State.placementType, parseFloat(center.lat.toFixed(6)), parseFloat(center.lng.toFixed(6))); 
-};
-
-DiscomApp.UI.cancelPlacement = function(e) { 
-    if(e){e.preventDefault(); e.stopPropagation();} 
-    document.getElementById('center-placement-pin').style.display = 'none'; 
-    const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; 
-    const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; 
-    document.getElementById('bottom-single-action').style.display = 'block'; 
-};
+DiscomApp.UI.confirmPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; const center = map.getCenter(); DiscomApp.UI.showFormModal(DiscomApp.State.placementType, parseFloat(center.lat.toFixed(6)), parseFloat(center.lng.toFixed(6))); }
+DiscomApp.UI.cancelPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; }
 
 DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
-    const net = DiscomApp.State.getActiveNetwork(); if(!net) return; 
-    let center = { lat: 26.91, lng: 75.78 }; if(map) center = map.getCenter(); 
-    snapLat = snapLat || parseFloat(center.lat.toFixed(6)); 
-    snapLng = snapLng || parseFloat(center.lng.toFixed(6)); 
-    tempPhotoUrl = null;
-    
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let center = { lat: 26.91, lng: 75.78 }; if(map) center = map.getCenter(); snapLat = snapLat || parseFloat(center.lat.toFixed(6)); snapLng = snapLng || parseFloat(center.lng.toFixed(6)); tempPhotoUrl = null;
     if (type === 'POLE' || type === 'LTPOLE') {
         const isHT = type === 'POLE'; let dtSelectHtml = ''; let nextNo = '';
         if(isHT) { let maxHtNo = 0; (net.poles||[]).filter(p => p.lineType !== 'LT').forEach(p => { const num = parseInt(p.poleNo); if(!isNaN(num) && num > maxHtNo) maxHtNo = num; }); nextNo = maxHtNo + 1; } 
-        else { 
-            if ((net.dts||[]).length === 0) return alert("Add a DT first!"); 
-            let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); 
-            dtSelectHtml = `<div class="form-row"><select id="inpLTPoleDT" class="form-select">${sortedDTs.map(d => `<option value="${d.id}">DT: ${d.id.replace('DT_','')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('')}</select><label>Associated DT*</label></div>`; 
-        }
+        else { if ((net.dts||[]).length === 0) return alert("Add a DT first!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); dtSelectHtml = `<div class="form-row"><select id="inpLTPoleDT" class="form-select">${sortedDTs.map(d => `<option value="${d.id}">DT: ${d.id.replace('DT_','')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('')}</select><label>Associated DT*</label></div>`; }
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add ${isHT?'HT':'LT'} Pole</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div>${dtSelectHtml}${isHT ? `<div class="form-row"><input type="number" id="inpPoleNo" class="form-input" placeholder=" " value="${nextNo}"><label>Pole Number*</label></div>` : ''}<div class="form-grid-2"><div class="form-row"><select id="inpMainPoleType" class="form-select" onchange="DiscomApp.UI.togglePccConfig('inpMainPoleType', 'pccConfigDiv')"><option value="PCC" selected>PCC</option><option value="TOWER">TOWER</option><option value="RAIL POLE">RAIL POLE</option></select><label>Pole Type*</label></div><div class="form-row"><select id="inpPoleCondition" class="form-select"><option value="Good" selected>Good</option><option value="Tilted">Tilted</option><option value="Damaged">Damaged</option></select><label>Condition</label></div></div><div class="form-row" id="pccConfigDiv" style="display:block;"><select id="inpPccConfig" class="form-select"><option value="Single Pole" selected>Single Pole</option><option value="Double Pole">Double Pole</option></select><label>PCC Configuration</label></div><input type="hidden" id="inpPoleCategory" value="${isHT?'HT':'LT'}"><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => ${isHT?'DiscomApp.CRUD.saveNewPole()':'DiscomApp.CRUD.saveNewLTPole()'})">Save Pole</button>`);
     } else if (type === 'LINE') {
         if ((net.poles||[]).length === 0) return alert("Add at least one pole first!");
@@ -310,7 +358,7 @@ DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpConsDT" class="form-select" onchange="DiscomApp.UI.filterConsumerPoles()">${dtOpts}</select><label>Parent DT*</label></div><div class="form-row"><select id="inpConsParent" class="form-select"></select><label>Connects To*</label></div></div><div class="form-grid-2"><div class="form-row"><select id="inpConsStatus" class="form-select"><option value="Regular" selected>Regular</option><option value="DC">DC</option><option value="PDC">PDC</option></select><label>Status</label></div><div class="form-row"><select id="inpConsType" class="form-select"><option value="Domestic" selected>Domestic</option><option value="NonDomestic">NonDomestic</option><option value="Agriculture">Agriculture</option><option value="Govt.">Govt.</option><option value="SIP MIP">SIP MIP</option><option value="Other">Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpConsKno" class="form-input" placeholder=" "><label>K-Number*</label></div><div class="form-row"><input type="text" id="inpConsLoad" class="form-input" placeholder=" " value="1 kW"><label>Load</label></div></div><div class="form-row"><input type="text" id="inpConsName" class="form-input" placeholder=" "><label>Consumer Name*</label></div><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewConsumer())">Save Consumer</button>`);
         setTimeout(() => DiscomApp.UI.filterConsumerPoles(), 100);
     }
-};
+}
 
 DiscomApp.UI.openEditModal = function(type, id) {
     DiscomApp.UI.closeObjectSheet(); const net = DiscomApp.State.getActiveNetwork();
@@ -332,4 +380,4 @@ DiscomApp.UI.openEditModal = function(type, id) {
         const l = (net.lines||[]).find(x => x.id === id); if (!l) return; 
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${l.type}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${l.type.includes('11')?'block':'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${l.type.includes('11') ? `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>` : `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Save Changes</button>`); 
     }
-};
+}
