@@ -27,13 +27,15 @@ DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
     
-    // NAYA CODE: TOWER/RAIL POLE ZOOM OUT FIX Ke Liye Dynamic Styles
+    // NAYA CODE: GSS RED DOT & ZOOM CSS FIX
     if(!document.getElementById('zoom-fix-styles')) {
         const s = document.createElement('style'); 
         s.id = 'zoom-fix-styles';
         s.innerHTML = `
             #map.hide-lt-poles .lt-pole-marker { display: none !important; visibility: hidden !important; pointer-events: none !important; }
             #map.hide-ht-poles .ht-pole-marker { display: none !important; visibility: hidden !important; pointer-events: none !important; }
+            #map.shrink-gss .gss-big-icon { display: none !important; }
+            #map.shrink-gss .gss-small-dot { display: block !important; }
         `;
         document.head.appendChild(s);
     }
@@ -86,13 +88,29 @@ DiscomApp.Map.setupFeatureGroups = function() {
     };
 };
 
+// =====================================
+// NAYA ZOOM LOGIC (HT LINE NEVER HIDES)
+// =====================================
 DiscomApp.Map.updateMapZoomClasses = function() {
     if(!map) return; const z = map.getZoom(), mapEl = document.getElementById('map'); 
-    mapEl.classList.remove('hide-consumers', 'hide-lt-poles', 'hide-lt-lines', 'hide-ht-poles', 'hide-ht-lines', 'hide-dt', 'hide-gss');
-    if (z <= 18) mapEl.classList.add('hide-consumers'); if (z <= 17) mapEl.classList.add('hide-lt-poles'); if (z <= 16) mapEl.classList.add('hide-lt-lines'); if (z <= 15) mapEl.classList.add('hide-ht-poles'); if (z <= 14) mapEl.classList.add('hide-ht-lines'); if (z <= 13) mapEl.classList.add('hide-dt'); if (z <= 12) mapEl.classList.add('hide-gss'); 
+    
+    // Purani saari classes hatao pehle
+    mapEl.classList.remove('hide-consumers', 'hide-lt-poles', 'hide-lt-lines', 'hide-ht-poles', 'hide-ht-lines', 'hide-dt', 'hide-gss', 'shrink-gss');
+    
+    // Naya Rule: Hide according to zoom level
+    if (z <= 19) mapEl.classList.add('hide-consumers'); 
+    if (z <= 18) mapEl.classList.add('hide-lt-poles'); 
+    if (z <= 17) mapEl.classList.add('hide-lt-lines'); 
+    if (z <= 16) mapEl.classList.add('hide-ht-poles'); 
+    if (z <= 15) mapEl.classList.add('hide-dt'); 
+    if (z <= 14) mapEl.classList.add('shrink-gss'); // GSS bada icon gayab aur chota Red Circle on!
+    
+    // Note: 'hide-ht-lines' class ab kisi condition me add nahi hogi (Always Visible)
+
     let scale = 1; if (z < 19) scale = Math.max(0.35, 1 - ((19 - z) * 0.15)); else if (z > 19) scale = Math.min(1.5, 1 + ((z - 19) * 0.2));
     document.documentElement.style.setProperty('--icon-scale', scale);
 }
+
 DiscomApp.Map.toggleMapLayer = function() { if(!map) return; map.removeLayer(tileLayers[layerKeys[currentTileIndex]].layer); currentTileIndex = (currentTileIndex + 1) % layerKeys.length; tileLayers[layerKeys[currentTileIndex]].layer.addTo(map); document.getElementById('layer-indicator').innerText = tileLayers[layerKeys[currentTileIndex]].name; }
 
 DiscomApp.Map.centerMapOnGSS = function() { 
@@ -190,10 +208,7 @@ DiscomApp.Map.addSingleObjectToMap = function(type, obj) {
     if (type === 'POLE' || type === 'LTPOLE') {
         const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(obj.id) : false;
         let associatedDTs = []; const net = DiscomApp.State.getActiveNetwork(); if(net && net.dts) associatedDTs = net.dts.filter(d => String(d.parentPole) === String(obj.poleNo));
-        
-        // FIX: HIDING LOGIC KE LIYE CUSTOM CLASS APPLY KI HAI YAHAN
         const markerClass = obj.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
-        
         const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(obj, associatedDTs, isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
         m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', obj.id, `Pole ${obj.poleNo}`, `Type: <b>${obj.lineType || 'HT'}</b><br>Config: <b>${obj.poleType || 'Standard'}</b>`); }); 
         if(featureGroups.poles) featureGroups.poles.addLayer(m);
@@ -216,7 +231,13 @@ DiscomApp.Map.renderEntireNetwork = function() {
         Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => {
             if (typeof gss.lat === 'number' && !isNaN(gss.lat)) {
                 if (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === gss.code) return; 
-                const gssSvg = `<div style="background:transparent; border:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%;"><svg viewBox="0 0 100 50" style="width:60px;height:30px; filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.6));"><rect x="2" y="2" width="96" height="46" rx="6" fill="#dc2626" stroke="#ffffff" stroke-width="4"/><text x="50" y="34" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif">GSS</text></svg></div>`;
+                
+                // NAYA CODE: GSS HTML WITH RED DOT
+                const gssSvg = `<div style="background:transparent; border:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%; position:relative;">
+                    <svg class="gss-big-icon" viewBox="0 0 100 50" style="width:60px;height:30px; filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.6));"><rect x="2" y="2" width="96" height="46" rx="6" fill="#dc2626" stroke="#ffffff" stroke-width="4"/><text x="50" y="34" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif">GSS</text></svg>
+                    <div class="gss-small-dot" style="width:16px; height:16px; background:#dc2626; border:3px solid #ffffff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.6); display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);"></div>
+                </div>`;
+                
                 const m = L.marker([gss.lat, gss.lng], { icon: L.divIcon({ className: 'gss-marker', html: gssSvg, iconSize: [60,30], iconAnchor: [30,15] }), zIndexOffset: 500 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('GSS', gss.code, gss.name, `Code: <b>${gss.code}</b>`); }); featureGroups.gss.addLayer(m);
             }
@@ -227,10 +248,7 @@ DiscomApp.Map.renderEntireNetwork = function() {
             net.poles.forEach(p => {
                 if(!p || isNaN(p.lat) || isNaN(p.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === p.id)) return; 
                 const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(p.id) : false;
-                
-                // FIX: HIDING LOGIC KE LIYE CUSTOM CLASS APPLY KI HAI YAHAN
                 const markerClass = p.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
-                
                 const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType || 'HT'}</b><br>Config: <b>${p.poleType || 'Standard'}</b><br>Condition: <b>${p.condition||'Good'}</b>`); }); featureGroups.poles.addLayer(m);
             });
