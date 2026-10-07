@@ -163,14 +163,54 @@ DiscomApp.CRUD.saveEditedDT = function(id) { const net = DiscomApp.State.getActi
 DiscomApp.CRUD.saveEditedConsumer = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const c = (net.consumers||[]).find(x => x.id === id); if(!c) return false; DiscomApp.State.saveSnapshot(); c.name = document.getElementById('editConsName').value.trim(); c.load = document.getElementById('editConsLoad').value; c.status = document.getElementById('editConsStatus').value; c.cType = document.getElementById('editConsType').value; if(!c.name) { alert("Name required"); return false; } c.updatedAt = Date.now(); c.synced = false; return true; };
 DiscomApp.CRUD.saveEditedLine = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const l = (net.lines||[]).find(x => x.id === id); if(!l) return false; DiscomApp.State.saveSnapshot(); l.phase = document.getElementById('editLinePhase') ? document.getElementById('editLinePhase').value : l.phase; l.conductor = document.getElementById('editLineConductor').value; l.updatedAt = Date.now(); l.synced = false; return true; };
 
+// ==========================================
+// CASCADING DELETE FIX (No more ghost lines)
+// ==========================================
 DiscomApp.CRUD.deleteEntity = function(type, id) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     if(!confirm("Are you sure you want to delete this?")) return;
     DiscomApp.State.saveSnapshot();
-    if(!DiscomApp.State.deletedObjectIds) DiscomApp.State.deletedObjectIds = []; DiscomApp.State.deletedObjectIds.push(id);
-    if (type === 'pole') net.poles = net.poles.filter(x => x.id !== id); else if (type === 'dt') net.dts = net.dts.filter(x => x.id !== id); else if (type === 'consumer') net.consumers = net.consumers.filter(x => x.id !== id); else if (type === 'line') net.lines = net.lines.filter(x => x.id !== id);
+    if(!DiscomApp.State.deletedObjectIds) DiscomApp.State.deletedObjectIds = [];
+    DiscomApp.State.deletedObjectIds.push(id);
+    
+    let nodeRefs = []; // Array to track references like 'POLE_12' or 'DT_100'
+
+    if (type === 'pole') { 
+        const p = net.poles.find(x => x.id === id);
+        if(p) { nodeRefs.push('POLE_' + p.poleNo); nodeRefs.push(p.id); }
+        net.poles = net.poles.filter(x => x.id !== id); 
+    } 
+    else if (type === 'dt') { 
+        const d = net.dts.find(x => x.id === id);
+        if(d) { nodeRefs.push('DT_' + d.code); nodeRefs.push(d.id); }
+        net.dts = net.dts.filter(x => x.id !== id); 
+    } 
+    else if (type === 'consumer') { 
+        net.consumers = net.consumers.filter(x => x.id !== id); 
+    } 
+    else if (type === 'line') { 
+        net.lines = net.lines.filter(x => x.id !== id); 
+    }
+    
+    // Check and Delete ANY connected lines & consumers
+    if (nodeRefs.length > 0) {
+        if (net.lines) {
+            const linesToDelete = net.lines.filter(l => nodeRefs.includes(String(l.fromNode)) || nodeRefs.includes(String(l.toNode)));
+            linesToDelete.forEach(l => DiscomApp.State.deletedObjectIds.push(l.id)); // Tell cloud to delete line
+            net.lines = net.lines.filter(l => !nodeRefs.includes(String(l.fromNode)) && !nodeRefs.includes(String(l.toNode)));
+        }
+        if (net.consumers) {
+            let refValues = nodeRefs.map(r => r.replace('POLE_', '').replace('DT_', ''));
+            const consToDelete = net.consumers.filter(c => refValues.includes(String(c.parentRef)));
+            consToDelete.forEach(c => DiscomApp.State.deletedObjectIds.push(c.id)); // Tell cloud to delete consumer
+            net.consumers = net.consumers.filter(c => !refValues.includes(String(c.parentRef)));
+        }
+    }
+    
     if(typeof localforage !== 'undefined') localforage.removeItem('PHOTO_DATA_' + id); else localStorage.removeItem('PHOTO_DATA_' + id);
-    DiscomApp.Map.renderEntireNetwork(); DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Deleted successfully");
+    DiscomApp.Map.renderEntireNetwork(); 
+    DiscomApp.DB.triggerPersistence(); 
+    DiscomApp.UI.showToast("Deleted successfully");
 };
 
 DiscomApp.CRUD.deleteFeederStrict = function(code) { 
@@ -201,7 +241,6 @@ DiscomApp.CRUD.startObjectMove = function(type, id, title) {
 
 DiscomApp.CRUD.cancelMove = function() { DiscomApp.State.activeMove = null; document.getElementById('center-placement-pin').style.display = 'none'; document.getElementById('move-confirm-bar').style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; DiscomApp.Map.renderEntireNetwork(); };
 
-// FIX: DT Location synced correctly along with Pole Location Move
 DiscomApp.CRUD.confirmMove = function() { 
     if(!DiscomApp.State.activeMove) return; 
     const center = map.getCenter(); const net = DiscomApp.State.getActiveNetwork(); DiscomApp.State.saveSnapshot(); 
@@ -227,7 +266,6 @@ DiscomApp.CRUD.confirmMove = function() {
                 targetObj.synced = false; 
                 isUpdated = true; 
                 
-                // NAYA CODE: Agar pole move ho raha hai, toh uspe bandhi hui DT bhi sath move kardo
                 if (arrName === 'poles') {
                     (net.dts || []).forEach(dt => {
                         if (String(dt.parentPole) === String(targetObj.poleNo)) {
