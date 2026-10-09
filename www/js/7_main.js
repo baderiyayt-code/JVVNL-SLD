@@ -38,7 +38,6 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
-                // Zoom to last edited/saved object automatically on startup
                 if(DiscomApp.Map.centerMapOnLastObjectOrGSS) DiscomApp.Map.centerMapOnLastObjectOrGSS(); 
                 if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
                 if(DiscomApp.DB.updateUnsyncedBadge) DiscomApp.DB.updateUnsyncedBadge(); 
@@ -55,6 +54,14 @@ DiscomApp.Main.startAppStartupSequence = function() {
         if(window.cordova && cordova.plugins && cordova.plugins.permissions) { DiscomApp.Main.requestAppPermissions(); } else DiscomApp.Main.initializeAppPostPermissions();
     }, 2000);
 };
+
+// FIX: Form close functionality via device Back Button
+document.addEventListener("backbutton", function(e) {
+    const modal = document.getElementById('formModalOverlay');
+    const sheet = document.getElementById('object-bottom-sheet');
+    if(modal && modal.classList.contains('open')) { DiscomApp.UI.closeModal(); e.preventDefault(); }
+    else if(sheet && sheet.classList.contains('open')) { DiscomApp.UI.closeObjectSheet(); e.preventDefault(); }
+}, false);
 
 document.addEventListener('deviceready', DiscomApp.Main.startAppStartupSequence, false); 
 if (!window.cordova) { window.addEventListener('DOMContentLoaded', DiscomApp.Main.startAppStartupSequence); }
