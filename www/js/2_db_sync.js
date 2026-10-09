@@ -103,9 +103,19 @@ DiscomApp.DB.pullFromSupabase = async function() {
             }); 
         }
         await DiscomApp.DB.saveLocalData(); DiscomApp.UI.applyTranslations(); DiscomApp.UI.applyTheme(); if(map) map.invalidateSize(); 
-        DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.updateFeederDropdown(); DiscomApp.DB.setSyncStatus('synced'); 
+        if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
+        DiscomApp.UI.updateFeederDropdown(); DiscomApp.DB.setSyncStatus('synced'); 
         if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); DiscomApp.DB.updateUnsyncedBadge();
     } catch (err) { console.error("Sync pull error:", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
+};
+
+// FIX: Instant Force Sync Logic
+DiscomApp.DB.forceSync = async function() {
+    if(!navigator.onLine) return DiscomApp.UI.showToast("⚠️ You are offline!");
+    DiscomApp.UI.showToast("🔄 Force Sync Started...");
+    await DiscomApp.DB.syncToSupabase();
+    await DiscomApp.DB.pullFromSupabase();
+    DiscomApp.UI.showToast("✅ Sync Complete!");
 };
 
 DiscomApp.DB.syncTimeout = null;
