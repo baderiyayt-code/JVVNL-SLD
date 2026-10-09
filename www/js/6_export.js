@@ -18,6 +18,7 @@ DiscomApp.Export.fallbackBrowserDownload = function(blob, filename) {
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); DiscomApp.UI.showToast(`Downloaded: ${filename}`); DiscomApp.UI.closeModal();
 };
 
+// FIX: Improved Boundaries & Feeder Details box in bottom right corner
 DiscomApp.Export.generateCadSLDPdf = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
     if (typeof window.jspdf === 'undefined') return alert("PDF Library loading...");
@@ -38,6 +39,7 @@ DiscomApp.Export.generateCadSLDPdf = function() {
         let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity, nodes = [];
         const pGss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null;
         if(pGss) nodes.push({id: 'GSS_'+pGss.code, type: 'GSS', lat: pGss.lat, lng: pGss.lng, data: pGss});
+        
         (net.poles||[]).forEach(p => { if(!isNaN(p.lat) && p.lineType !== 'LT') nodes.push({id: 'POLE_'+p.poleNo, type: 'POLE', lat: p.lat, lng: p.lng, data: p}); });
         
         let poleDTMap = {};
@@ -52,7 +54,8 @@ DiscomApp.Export.generateCadSLDPdf = function() {
         nodes.forEach(n => { if(n.lat < minLat) minLat = n.lat; if(n.lat > maxLat) maxLat = n.lat; if(n.lng < minLng) minLng = n.lng; if(n.lng > maxLng) maxLng = n.lng; });
         if(maxLat === minLat) { maxLat += 0.001; minLat -= 0.001; } if(maxLng === minLng) { maxLng += 0.001; minLng -= 0.001; }
         
-        const padLat = (maxLat - minLat) * 0.1; const padLng = (maxLng - minLng) * 0.1;
+        // FIX: Increased Padding to keep data inside the box
+        const padLat = (maxLat - minLat) * 0.15; const padLng = (maxLng - minLng) * 0.15;
         minLat -= padLat; maxLat += padLat; minLng -= padLng; maxLng += padLng;
         
         const cosLat = Math.cos(((minLat + maxLat) / 2) * (Math.PI / 180));
@@ -79,15 +82,92 @@ DiscomApp.Export.generateCadSLDPdf = function() {
             const pos = mapToPdf(n.lat, n.lng);
             if(n.type === 'GSS') { doc.setFillColor(220, 38, 38); doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); } 
             else if(n.type === 'DT') { doc.setFillColor(249, 115, 22); doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); } 
-            else if(n.type === 'POLE') { doc.setFillColor(100, 116, 139); doc.circle(pos.x, pos.y, 0.5, 'F'); }
+            else if(n.type === 'POLE') { 
+                doc.setFillColor(100, 116, 139); doc.circle(pos.x, pos.y, 0.5, 'F'); 
+                const pNo = String(n.data.poleNo); const dts = poleDTMap[pNo] || [];
+                if(dts.length > 0) {
+                    dts.forEach((dt, idx) => {
+                        let offsetX = 0, offsetY = 1.0; 
+                        if(dts.length > 1) { if(idx === 0) offsetX = -1.0; else if(idx === 1) offsetX = 1.0; }
+                        doc.setFillColor(249, 115, 22); doc.rect(pos.x + offsetX - 0.75, pos.y + offsetY - 0.75, 1.5, 1.5, 'FD'); 
+                        doc.setFontSize(2.0); doc.setTextColor(0,0,0); doc.text(String(dt.rating).replace(/[^0-9]/g, ''), pos.x + offsetX, pos.y + offsetY + 0.4, { align: 'center' });
+                    });
+                }
+            }
         });
+
+        // FIX: Proper Details Box at bottom right corner
+        doc.setFillColor(255, 255, 255); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); 
+        doc.rect(pageWidth - margin - 55, pageHeight - margin - 18, 53, 16, 'FD'); 
+        doc.setFontSize(7); doc.setTextColor(0, 0, 0); 
+        doc.text(`Feeder Name: ${fName}`, pageWidth - margin - 53, pageHeight - margin - 13); 
+        doc.text(`Total HT Line: ${(totalHT/1000).toFixed(3)} km`, pageWidth - margin - 53, pageHeight - margin - 9); 
+        doc.text(`Total DTs: ${(net.dts||[]).length}`, pageWidth - margin - 53, pageHeight - margin - 5);
 
         const pdfBlob = doc.output('blob');
         DiscomApp.Export.downloadFileNative(pdfBlob, `${fName.replace(/\s+/g, '_')}_SLD.pdf`);
     } catch(err) { alert("PDF Error: " + err.message); }
 };
 
+// FIX: New DT Report Generation PDF Logic
+DiscomApp.Export.exportDtReportPdf = function(dtId) {
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
+    const d = (net.dts||[]).find(x => x.id === dtId); if(!d) return;
+    try { 
+        const { jsPDF } = window.jspdf; const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' }); 
+        doc.setFontSize(16); doc.text(`DT Consumer Report: ${d.code}`, 15, 20); 
+        
+        doc.setFontSize(10);
+        doc.text(`Rating: ${d.rating} kVA`, 15, 30);
+        doc.text(`Phase: ${d.phase || 'N/A'}`, 15, 36);
+        doc.text(`Location: ${d.location || 'N/A'}`, 15, 42);
+        
+        doc.setFontSize(12); doc.text(`Connected Consumers List`, 15, 55);
+        
+        let y = 65;
+        const connectedConsumers = (net.consumers||[]).filter(c => {
+            let isConnected = false; 
+            if(String(c.parentRef) === String(d.code) || String(c.parentRef) === String('DT_' + d.code)) isConnected = true; 
+            else { const pole = (net.poles||[]).find(p => String(p.poleNo) === String(c.parentRef) || String(p.id) === String('POLE_' + c.parentRef)); if(pole && String(pole.dtCode) === String(d.code)) isConnected = true; } 
+            return isConnected;
+        });
+        
+        doc.setFontSize(9); doc.setFont(undefined, 'bold');
+        doc.text("S.No", 15, y); doc.text("K-No", 30, y); doc.text("Name", 65, y); doc.text("Type", 120, y); doc.text("Load", 170, y);
+        y += 5; doc.setLineWidth(0.5); doc.line(15, y, 195, y); y += 6;
+        
+        doc.setFont(undefined, 'normal');
+        connectedConsumers.forEach((c, idx) => {
+            if(y > 270) { doc.addPage(); y = 20; }
+            doc.text(String(idx+1), 15, y); doc.text(String(c.kno||'N/A'), 30, y); doc.text(String(c.name||'Unknown').substring(0,25), 65, y); doc.text(String(c.cType||'Domestic'), 120, y); doc.text(String(c.load||'N/A'), 170, y);
+            y += 6;
+        });
+        
+        const pdfBlob = doc.output('blob'); 
+        DiscomApp.Export.downloadFileNative(pdfBlob, `DT_${d.code}_Report.pdf`); 
+    } catch(err) { alert("Error generating DT PDF: " + err.message); }
+};
+
+DiscomApp.Export.exportToGoogleEarth_KML = function() {
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
+    let kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${net.feeder.name || 'Feeder'} KML</name></Document></kml>`;
+    const blob = new Blob([kml], {type: "application/vnd.google-earth.kml+xml"}); DiscomApp.Export.downloadFileNative(blob, `${(net.feeder.name || 'network').replace(/\s+/g, '_')}.kml`);
+};
+
+DiscomApp.Export.exportToAutoCAD_DXF = function() {
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
+    let dxf = "0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n";
+    const blob = new Blob([dxf], {type: "application/dxf"}); DiscomApp.Export.downloadFileNative(blob, `${(net.feeder.name || 'network').replace(/\s+/g, '_')}.dxf`);
+};
+
+DiscomApp.Export.exportDataToCSV = function() {
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
+    let csv = "Type,ID,Lat,Lng\n";
+    const blob = new Blob([csv], {type: "text/csv"}); DiscomApp.Export.downloadFileNative(blob, `${(net.feeder.name || 'network').replace(/\s+/g, '_')}_Data.csv`);
+};
+
 DiscomApp.Export.exportFullJSONBackup = function() { const dataStr = JSON.stringify(DiscomApp.State, null, 2); const blob = new Blob([dataStr], {type: "application/json"}); DiscomApp.Export.downloadFileNative(blob, `Backup_${new Date().getTime()}.json`); };
+
 DiscomApp.Export.handleImportChoice = function(e) {
     const file = e.target.files[0]; if(!file) return; const reader = new FileReader();
     reader.onload = function(ev) { 
