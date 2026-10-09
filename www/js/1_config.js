@@ -11,7 +11,8 @@ DiscomApp.State = {
     settings: { checkOrphanNode: true, unit: 'm', gpsInterval: 3, gpsAccuracy: 10, language: 'en', theme: 'light', liveSync: true, markerCluster: true }, 
     user: { isLoggedIn: false, name: "", email: "", id: null },
     filters: { lines11: true, linesLT: true, poles: true, dts: true, consumers: true },
-    currentFeederCode: null, gssNodes: {}, feeders: {}, orphanPoleIds: new Set(), activeMove: null, placementType: null, photos: [], deletedObjectIds: [], deletedFeederCodes: []
+    currentFeederCode: null, gssNodes: {}, feeders: {}, orphanPoleIds: new Set(), activeMove: null, placementType: null, photos: [], deletedObjectIds: [], deletedFeederCodes: [],
+    appMode: 'edit' // Default mode is 'edit' for full access
 };
 
 var historyStack = []; var map = null; var tileLayers = {}; var currentTileIndex = 0; var layerKeys = []; var featureGroups = {}; 
