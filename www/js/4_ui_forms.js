@@ -1,5 +1,12 @@
 /* --- js/4_ui_forms.js --- */
 
+// Helper: Format Time for "Last Updated"
+DiscomApp.UI.formatTime = function(ts) {
+    if(!ts) return 'N/A';
+    const d = new Date(ts);
+    return d.toLocaleString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+};
+
 DiscomApp.UI.toggleAuthMode = function() { 
     authMode = authMode === 'login' ? 'signup' : 'login'; 
     document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
@@ -77,7 +84,18 @@ DiscomApp.UI.executeSafeSave = function(actionFn) {
 };
 
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); };
-document.addEventListener('click', function(e) { const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } });
+
+// FIX: Out-click Close Logic
+document.addEventListener('click', function(e) { 
+    const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); 
+    if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } 
+    
+    const sheet = document.getElementById('object-bottom-sheet');
+    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon')) { DiscomApp.UI.closeObjectSheet(); }
+    
+    const modal = document.getElementById('formModalOverlay');
+    if(modal && modal.classList.contains('open') && e.target === modal) { DiscomApp.UI.closeModal(); }
+});
 
 DiscomApp.UI.toggleSidebar = function(open) { document.getElementById('sidebar-drawer').classList.toggle('open', open); document.getElementById('sidebarBackdrop').classList.toggle('open', open); if(open) { DiscomApp.UI.renderGssSidebarList(); DiscomApp.UI.renderFeederSidebarList(); } };
 DiscomApp.UI.toggleGssFolder = function() { const content = document.getElementById('gssFolderContent'), icon = document.getElementById('gssFolderIcon'); if (!content) return; const isHidden = content.style.display === 'none'; content.style.display = isHidden ? 'block' : 'none'; if(icon) icon.className = isHidden ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'; if (isHidden) DiscomApp.UI.renderGssSidebarList(); };
@@ -86,9 +104,10 @@ DiscomApp.UI.toggleFeederFolder = function() { const content = document.getEleme
 DiscomApp.UI.renderGssSidebarList = function() { const container = document.getElementById('gssListContainer'); if (!container) return; let html = ''; Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => { html += `<div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-glass); padding:8px; border-radius:6px; margin-top:6px; border:1px solid var(--border);"><div><b style="font-size:0.85rem;">${gss.name}</b><br><small style="color:var(--text-sub);">Code: ${gss.code}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="DiscomApp.CRUD.relocateGss('${gss.code}')"><i class="fa-solid fa-location-crosshairs"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="DiscomApp.CRUD.deleteGssAndFeederStrict('${gss.code}')"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
 DiscomApp.UI.renderFeederSidebarList = function() { const container = document.getElementById('feederListContainer'); if (!container) return; let html = ''; Object.keys(DiscomApp.State.feeders || {}).forEach(fCode => { const f = DiscomApp.State.feeders[fCode].feeder; const isActive = DiscomApp.State.currentFeederCode === fCode; const bgClass = isActive ? 'background:rgba(37,99,235,0.1); border-left:4px solid var(--accent);' : 'background:var(--bg-glass); border:1px solid var(--border);'; html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px; border-radius:6px; margin-top:6px; ${bgClass}" onclick="DiscomApp.State.switchFeeder('${fCode}')"><div style="cursor:pointer; width: 100%;"><b style="font-size:0.85rem; color:var(--text-main);">${f.name}</b><br><small style="color:var(--text-sub);">GSS: ${f.parentGss}</small></div><div style="display:flex; gap:4px;"><button class="action-btn-sm bg" onclick="event.stopPropagation(); DiscomApp.UI.openEditFeederModal('${fCode}')"><i class="fa-solid fa-pen"></i></button><button class="action-btn-sm bg" style="color:#ef4444;" onclick="event.stopPropagation(); DiscomApp.CRUD.deleteFeederStrict('${fCode}')"><i class="fa-solid fa-trash"></i></button></div></div>`; }); container.innerHTML = html; };
 
-DiscomApp.UI.openFeederConfigModal = function() { DiscomApp.UI.toggleSidebar(false); const gssOpts = Object.values(DiscomApp.State.gssNodes || {}).map(g => `<option value="${g.code}">${g.name}</option>`).join(''); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Feeder</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpFeederGss" class="form-select">${gssOpts}</select><label>Select GSS*</label></div><div class="form-row"><input type="text" id="inpFeederCode" class="form-input" placeholder=" "><label>Feeder Code*</label></div><div class="form-row"><input type="text" id="inpFeederName" class="form-input" placeholder=" "><label>Feeder Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewFeeder()">Save Feeder</button>`); };
-DiscomApp.UI.openEditFeederModal = function(code) { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Feeder Name</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" value="${code}" disabled placeholder=" "><label>Feeder Code (Locked)</label></div><div class="form-row"><input type="text" id="editFeederName" class="form-input" placeholder=" " value="${DiscomApp.State.feeders[code].feeder.name}"><label>New Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveEditedFeeder('${code}')">Save Changes</button>`); };
-DiscomApp.UI.openAddGssModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-plus-circle"></i> Add New GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="inpGssCode" class="form-input" placeholder=" "><label>GSS Code*</label></div><div class="form-row"><input type="text" id="inpGssName" class="form-input" placeholder=" "><label>GSS Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewGss()">Save GSS</button>`); };
+// FIX: Added GSS MVA and Feeder Meter No
+DiscomApp.UI.openAddGssModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-plus-circle"></i> Add New GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="inpGssCode" class="form-input" placeholder=" "><label>GSS Code*</label></div><div class="form-row"><input type="text" id="inpGssName" class="form-input" placeholder=" "><label>GSS Name*</label></div><div class="form-row"><input type="number" id="inpGssMva" class="form-input" placeholder=" "><label>Power Capacity (MVA)</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewGss()">Save GSS</button>`); };
+DiscomApp.UI.openFeederConfigModal = function() { DiscomApp.UI.toggleSidebar(false); const gssOpts = Object.values(DiscomApp.State.gssNodes || {}).map(g => `<option value="${g.code}">${g.name}</option>`).join(''); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Feeder</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpFeederGss" class="form-select">${gssOpts}</select><label>Select GSS*</label></div><div class="form-row"><input type="text" id="inpFeederCode" class="form-input" placeholder=" "><label>Feeder Code*</label></div><div class="form-row"><input type="text" id="inpFeederName" class="form-input" placeholder=" "><label>Feeder Name*</label></div><div class="form-row"><input type="text" id="inpFeederMeter" class="form-input" placeholder=" "><label>Feeder Meter No.</label></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.CRUD.saveNewFeeder()">Save Feeder</button>`); };
+DiscomApp.UI.openEditFeederModal = function(code) { DiscomApp.UI.toggleSidebar(false); const f = DiscomApp.State.feeders[code].feeder; DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Feeder Details</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" value="${code}" disabled placeholder=" "><label>Feeder Code (Locked)</label></div><div class="form-row"><input type="text" id="editFeederName" class="form-input" placeholder=" " value="${f.name}"><label>New Name*</label></div><div class="form-row"><input type="text" id="editFeederMeter" class="form-input" placeholder=" " value="${f.meterNo||''}"><label>Feeder Meter No.</label></div><button class="btn-action-primary" onclick="DiscomApp.CRUD.saveEditedFeeder('${code}')">Save Changes</button>`); };
 
 DiscomApp.UI.autoSaveSettings = function() { 
     DiscomApp.State.settings.unit = document.getElementById('setUnit').value; 
@@ -111,9 +130,30 @@ DiscomApp.UI.openSettingsPage = function() {
 };
 DiscomApp.UI.closeSettingsPage = function() { document.getElementById('settings-page').classList.remove('open'); };
 
-DiscomApp.UI.openAboutModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-circle-info" style="color:#3b82f6;"></i> About App</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div style="text-align: center; padding: 10px 0 20px 0;"><div style="width: 64px; height: 64px; background: var(--accent); color: white; font-size: 32px; border-radius: 16px; display: flex; align-items:center; justify-content:center; margin: 0 auto 15px auto;"><i class="fa-solid fa-bolt"></i></div><h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main);">DISCOM Survey Pro</h3></div>`); };
+// FIX: About Info
+DiscomApp.UI.openAboutModal = function() { DiscomApp.UI.toggleSidebar(false); DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-circle-info" style="color:#3b82f6;"></i> About App</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div style="text-align: center; padding: 10px 0 20px 0;"><div style="width: 64px; height: 64px; background: var(--accent); color: white; font-size: 32px; border-radius: 16px; display: flex; align-items:center; justify-content:center; margin: 0 auto 15px auto;"><i class="fa-solid fa-bolt"></i></div><h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main);">DISCOM Survey Pro</h3><p style="font-size:0.85rem; color:var(--text-sub); margin-top:8px;">Developed By:<br><strong style="color:var(--accent); font-size:1.1rem;">Suraj Singh Mehta</strong><br>Technician in JVVNL</p></div>`); };
 DiscomApp.UI.openFilterModal = function() { const f = DiscomApp.State.filters; DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-filter" style="color:#d97706;"></i> Object Filter</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="capsule-filter-group"><label class="capsule"><input type="checkbox" id="flt11" ${f.lines11?'checked':''}><span>11 KV Line</span></label><label class="capsule"><input type="checkbox" id="fltLT" ${f.linesLT?'checked':''}><span>LT Line</span></label><label class="capsule"><input type="checkbox" id="fltPoles" ${f.poles?'checked':''}><span>Poles</span></label><label class="capsule"><input type="checkbox" id="fltDTs" ${f.dts?'checked':''}><span>DT</span></label><label class="capsule"><input type="checkbox" id="fltCons" ${f.consumers?'checked':''}><span>Consumers</span></label></div><button class="btn-action-primary" onclick="DiscomApp.UI.saveFilters()" style="margin-top:20px;">Apply Filters</button>`); };
 DiscomApp.UI.saveFilters = function() { DiscomApp.State.filters.lines11 = document.getElementById('flt11').checked; DiscomApp.State.filters.linesLT = document.getElementById('fltLT').checked; DiscomApp.State.filters.poles = document.getElementById('fltPoles').checked; DiscomApp.State.filters.dts = document.getElementById('fltDTs').checked; DiscomApp.State.filters.consumers = document.getElementById('fltCons').checked; DiscomApp.UI.closeModal(); DiscomApp.Map.renderEntireNetwork(); DiscomApp.UI.showToast("Filters Updated"); };
+
+// FIX: KPI Toggle logic added here
+window.toggleKPIBar = function() {
+    const kpi = document.getElementById('kpi-container');
+    const icon = document.getElementById('kpi-toggle-icon');
+    if(kpi.classList.contains('collapsed')) { kpi.classList.remove('collapsed'); icon.className = 'fa-solid fa-chevron-up'; } 
+    else { kpi.classList.add('collapsed'); icon.className = 'fa-solid fa-chevron-down'; }
+};
+
+// FIX: App Mode Toggle Logic Added
+window.toggleAppMode = function() {
+    DiscomApp.State.appMode = DiscomApp.State.appMode === 'edit' ? 'inspect' : 'edit';
+    const btn = document.getElementById('modeToggleBtn');
+    if(btn) {
+        btn.innerHTML = DiscomApp.State.appMode === 'edit' ? '<i class="fa-solid fa-pen-ruler"></i>' : '<i class="fa-solid fa-eye"></i>';
+        btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981';
+    }
+    DiscomApp.UI.showToast(`Mode switched to: ${DiscomApp.State.appMode.toUpperCase()}`);
+    if(DiscomApp.State.appMode === 'inspect' && DiscomApp.State.placementType) { DiscomApp.UI.cancelPlacement(); }
+};
 
 DiscomApp.UI.toggleSearchBox = function() { let box = document.getElementById('searchBoxOverlay'); if(!box) { box = document.createElement('div'); box.id = 'searchBoxOverlay'; box.style.cssText = 'position:absolute; top:65px; left:12px; right:12px; z-index:9000; background:var(--bg-glass); backdrop-filter:blur(10px); padding:10px; border-radius:12px; box-shadow:var(--shadow-md); display:flex; flex-direction:column; gap:10px; border:1px solid var(--border);'; box.innerHTML = `<div style="display:flex; gap:10px; align-items:center;"><input type="text" id="appSearchBar" class="search-input-full" placeholder="Search Consumer, DT, Pole..." onkeyup="DiscomApp.UI.handleSearch(event)"><button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-times"></i></button></div><div id="searchSuggestions" class="suggestions-panel" style="position:relative; box-shadow:none; border:none; top:0;"></div>`; document.getElementById('app-container').appendChild(box); } else { box.style.display = box.style.display === 'none' ? 'flex' : 'none'; if(box.style.display === 'none') DiscomApp.UI.clearSearch(); } if(box.style.display === 'flex') { document.getElementById('appSearchBar').focus(); } };
 DiscomApp.UI.handleSearch = function(e) { const query = e.target.value.toLowerCase().trim(), suggPanel = document.getElementById('searchSuggestions'); if(query.length === 0) { suggPanel.classList.remove('active'); return; } const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let results = []; (net.consumers||[]).forEach(c => { if (String(c.kno).toLowerCase().includes(query) || (c.name && c.name.toLowerCase().includes(query))) results.push({ type: 'CONSUMER', id: c.id, title: c.name, desc: `K-No: ${c.kno} | Connected to: ${c.parentRef}` }); }); (net.dts||[]).forEach(d => { if (String(d.code).toLowerCase().includes(query) || String(d.rating).includes(query)) results.push({ type: 'DT', id: d.id, title: `DT Code: ${d.code}`, desc: `Rating: ${d.rating} kVA` }); }); (net.poles||[]).forEach(p => { if (String(p.poleNo).toLowerCase().includes(query)) results.push({ type: 'POLE', id: p.id, title: `Pole: ${p.poleNo}`, desc: `Type: ${p.lineType}` }); }); if (results.length > 0) { suggPanel.innerHTML = results.slice(0, 15).map(r => `<div class="suggestion-item" onclick="DiscomApp.UI.selectSearchResult('${r.type}', '${r.id}')"><div class="sugg-title"><span style="color:var(--accent); font-weight:800;">${r.title}</span></div><div class="sugg-desc" style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">${r.desc}</div></div>`).join(''); suggPanel.classList.add('active'); } else { suggPanel.innerHTML = `<div style="padding:10px 12px; font-size:0.8rem; color:#64748b;">No results found</div>`; suggPanel.classList.add('active'); } };
@@ -121,39 +161,35 @@ DiscomApp.UI.clearSearch = function() { const bar = document.getElementById('app
 DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return; DiscomApp.UI.clearSearch(); DiscomApp.UI.toggleSearchBox(); let target = null, popupHtml = ''; if(type === 'CONSUMER') { target = net.consumers.find(c => c.id === id); if(target) popupHtml = `K-No: <b>${target.kno}</b>`; } else if(type === 'DT') { target = net.dts.find(d => d.id === id); if(target) popupHtml = `Rating: <b>${target.rating} kVA</b>`; } else if(type === 'POLE') { target = net.poles.find(p => p.id === id); if(target) popupHtml = `Type: <b>${target.lineType}</b>`; } if(target && target.lat) { if(map) map.flyTo([target.lat, target.lng], 19, { duration: 1 }); setTimeout(() => DiscomApp.UI.openObjectSheet(type, id, type === 'CONSUMER' ? target.name : (type === 'DT' ? `DT: ${target.code}` : `Pole: ${target.poleNo}`), popupHtml), 1000); } };
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
-// ==========================================
-// FIX: PHOTO CAPTURE & RENDERING LOGIC
-// ==========================================
-
-// 1. Opening an object sheet properly triggers DOM images by querySelectorAll
-DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml) {
+// FIX: Included UpdatedAt Time & Inspect Mode Logic
+DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml, updatedAt = null) {
     currentSelectedObj = { type, id }; 
     document.getElementById('objSheetTitle').innerText = title; 
-    document.getElementById('objSheetDetails').innerHTML = detailsHtml;
+    
+    // Add Update Time
+    let timeStr = `<div style="margin-top:8px; font-size:0.75rem; color:var(--text-sub);"><i class="fa-regular fa-clock"></i> Last Updated: ${DiscomApp.UI.formatTime(updatedAt || Date.now())}</div>`;
+    document.getElementById('objSheetDetails').innerHTML = detailsHtml + timeStr;
     
     const applyPhoto = (url) => { 
-        document.querySelectorAll('#objPhotoImg').forEach(imgEl => {
-            if(url) { imgEl.src = url; imgEl.style.display = 'block'; } 
-            else { imgEl.style.display = 'none'; imgEl.src = ''; }
-        });
-        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => {
-            if(url) { placeholderEl.style.display = 'none'; } 
-            else { placeholderEl.style.display = 'flex'; }
-        });
+        document.querySelectorAll('#objPhotoImg').forEach(imgEl => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; } else { imgEl.style.display = 'none'; imgEl.src = ''; } });
+        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { if(url) { placeholderEl.style.display = 'none'; } else { placeholderEl.style.display = 'flex'; } });
     };
-    
-    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(id); 
-    if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
-    
+    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(id); if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else applyPhoto(photoUrlPromise);
     document.getElementById('object-bottom-sheet').classList.add('open'); 
+    
+    // Inspect Mode Checking
+    const isEdit = DiscomApp.State.appMode === 'edit';
+    document.getElementById('btnObjEdit').style.display = isEdit ? 'block' : 'none';
+    document.getElementById('btnObjDelete').style.display = (isEdit && type !== 'GSS') ? 'block' : 'none'; 
+    document.getElementById('btnObjMove').style.display = (isEdit && type !== 'DT') ? 'block' : 'none';
+    const camBtn = document.getElementById('btnObjCapture'); if(camBtn) camBtn.style.display = isEdit ? 'block' : 'none';
+
     document.getElementById('btnObjEdit').onclick = () => DiscomApp.UI.openEditModal(type.toLowerCase(), id);
-    document.getElementById('btnObjDelete').style.display = (type === 'GSS') ? 'none' : 'block'; 
-    document.getElementById('btnObjMove').style.display = (type === 'DT') ? 'none' : 'block';
     document.getElementById('btnObjMove').onclick = () => DiscomApp.CRUD.startObjectMove(type, id, title); 
     document.getElementById('btnObjDelete').onclick = () => { DiscomApp.CRUD.deleteEntity(type.toLowerCase(), id); DiscomApp.UI.closeObjectSheet(); };
 };
 
-// 2. DT opening modal also perfectly syncs image rendering
+// FIX: Included UpdatedAt Time & Inspect Mode Logic for DT
 DiscomApp.UI.openDTFromSVG = function(e, id) {
     if(e) e.stopPropagation(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     const d = (net.dts||[]).find(x => x.id === id); if(!d) return; currentSelectedObj = { type: 'DT', id: d.id };
@@ -161,6 +197,8 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
     (net.consumers||[]).forEach(c => { let isConnected = false; if(String(c.parentRef) === String(d.code) || String(c.parentRef) === String('DT_' + d.code)) isConnected = true; else { const pole = (net.poles||[]).find(p => String(p.poleNo) === String(c.parentRef) || String(p.id) === String('POLE_' + c.parentRef)); if(pole && String(pole.dtCode) === String(d.code)) isConnected = true; } if(isConnected) connectedConsumers.push(c); });
     let totalLoadKW = 0; connectedConsumers.forEach(c => { const numMatch = String(c.load || '0').match(/[\d.]+/); if(numMatch) totalLoadKW += parseFloat(numMatch[0]) || 0; });
     let tableRowsHtml = connectedConsumers.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding:12px; color:var(--text-sub); font-size:0.8rem;">No consumers connected.</td></tr>` : connectedConsumers.map((c, index) => `<tr style="border-bottom: 1px solid var(--border);"><td style="padding:6px 8px; font-size:0.75rem; text-align:center;">${index + 1}</td><td style="padding:6px 8px; font-size:0.75rem; font-weight:700;">${c.kno || 'N/A'}</td><td style="padding:6px 8px; font-size:0.75rem;">${c.name || 'Unknown'}</td><td style="padding:6px 8px; font-size:0.75rem;">${c.cType || 'Domestic'}</td><td style="padding:6px 8px; font-size:0.75rem; text-align:right;">${c.load || '1 kW'}</td></tr>`).join('');
+    
+    const isEdit = DiscomApp.State.appMode === 'edit';
     
     DiscomApp.UI.openModal(`
         <div class="sheet-head"><div class="sheet-title"><i class="fa-solid fa-bolt" style="color:var(--accent);"></i> DT Details & Consumers</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div>
@@ -179,105 +217,36 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
             </div>
             <div style="font-weight:800; font-size:0.8rem; margin-bottom:6px; color:var(--text-main);">Connected Consumers</div>
             <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background:var(--bg-base); margin-bottom: 12px;"><table style="width:100%; border-collapse: collapse; text-align:left;"><thead><tr style="background:var(--bg-glass); border-bottom:2px solid var(--border); font-size:0.7rem; color:var(--text-sub);"><th style="padding:6px 8px; text-align:center;">#</th><th style="padding:6px 8px;">K-No</th><th style="padding:6px 8px;">Name</th><th style="padding:6px 8px;">Category</th><th style="padding:6px 8px; text-align:right;">Load</th></tr></thead><tbody>${tableRowsHtml}</tbody></table></div>
+            <div style="font-size:0.75rem; color:var(--text-sub); text-align:center; margin-bottom:8px;"><i class="fa-regular fa-clock"></i> Last Updated: ${DiscomApp.UI.formatTime(d.updatedAt || Date.now())}</div>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
                 <button class="btn-action-primary" style="margin:0; background:#0f172a; font-size:0.8rem; padding:10px;" onclick="DiscomApp.Export.exportDtReportPdf('${d.id}')"><i class="fa-solid fa-file-pdf"></i> PDF Report</button>
-                <button class="btn-action-primary" style="margin:0; background:var(--accent); font-size:0.8rem; padding:10px;" onclick="DiscomApp.UI.openEditModal('dt', '${d.id}')"><i class="fa-solid fa-pen"></i> Edit DT</button>
-                <button class="btn-action-primary" style="margin:0; background:#ef4444; font-size:0.8rem; padding:10px;" onclick="if(confirm('Delete DT ${d.code}?')) { DiscomApp.CRUD.deleteEntity('dt', '${d.id}'); DiscomApp.UI.closeModal(); }"><i class="fa-solid fa-trash"></i> Delete DT</button>
-                <button class="btn-action-primary" style="margin:0; background:#0f172a; color:#fff; font-size:0.8rem; padding:10px;" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button>
+                <button class="btn-action-primary" style="margin:0; background:var(--accent); font-size:0.8rem; padding:10px; display:${isEdit ? 'block':'none'};" onclick="DiscomApp.UI.openEditModal('dt', '${d.id}')"><i class="fa-solid fa-pen"></i> Edit DT</button>
+                <button class="btn-action-primary" style="margin:0; background:#ef4444; font-size:0.8rem; padding:10px; display:${isEdit ? 'block':'none'};" onclick="if(confirm('Delete DT ${d.code}?')) { DiscomApp.CRUD.deleteEntity('dt', '${d.id}'); DiscomApp.UI.closeModal(); }"><i class="fa-solid fa-trash"></i> Delete DT</button>
+                <button class="btn-action-primary" style="margin:0; background:#0f172a; color:#fff; font-size:0.8rem; padding:10px; display:${isEdit ? 'block':'none'};" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button>
             </div>
         </div>
     `);
     
     const applyPhoto = (url) => { 
-        document.querySelectorAll('#objPhotoImg').forEach(imgEl => {
-            if(url) { imgEl.src = url; imgEl.style.display = 'block'; }
-            else { imgEl.style.display = 'none'; imgEl.src = ''; }
-        });
-        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => {
-            if(url) { placeholderEl.style.display = 'none'; }
-            else { placeholderEl.style.display = 'flex'; }
-        });
+        document.querySelectorAll('#objPhotoImg').forEach(imgEl => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; } else { imgEl.style.display = 'none'; imgEl.src = ''; } });
+        document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { if(url) { placeholderEl.style.display = 'none'; } else { placeholderEl.style.display = 'flex'; } });
     };
-    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(d.id);
-    if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
+    const photoUrlPromise = DiscomApp.DB.getPhotoUrl(d.id); if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
 };
 
-// 3. Robust Camera/Gallery Fallback for WebView/App (Temporary Forms)
 DiscomApp.UI.captureTempPhoto = function() {
-    const processPhoto = (base64Data) => {
-        tempPhotoUrl = base64Data;
-        document.querySelectorAll('#formTempPhoto').forEach(imgEl => {
-            imgEl.src = tempPhotoUrl; 
-            imgEl.style.display = 'block';
-        });
-    };
-
-    if (window.cordova && navigator.camera) { 
-        navigator.camera.getPicture((imgData) => { 
-            processPhoto("data:image/jpeg;base64," + imgData); 
-        }, (err) => { 
-            console.warn("Camera cancelled: " + err); 
-        }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true });
-    } else { 
-        let input = document.createElement('input'); 
-        input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; 
-        input.style.display = 'none';
-        document.body.appendChild(input); // Appends to DOM to fix WebView bugs
-        input.onchange = e => { 
-            let file = e.target.files[0]; 
-            if(!file) { document.body.removeChild(input); return; }
-            let reader = new FileReader(); 
-            reader.onload = ev => { 
-                processPhoto(ev.target.result); 
-                document.body.removeChild(input); 
-            }; 
-            reader.readAsDataURL(file); 
-        }; 
-        input.click(); 
-    }
+    const processPhoto = (base64Data) => { tempPhotoUrl = base64Data; document.querySelectorAll('#formTempPhoto').forEach(imgEl => { imgEl.src = tempPhotoUrl; imgEl.style.display = 'block'; }); };
+    if (window.cordova && navigator.camera) { navigator.camera.getPicture((imgData) => { processPhoto("data:image/jpeg;base64," + imgData); }, (err) => { console.warn("Camera cancelled"); }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); } else { let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.style.display = 'none'; document.body.appendChild(input); input.onchange = e => { let file = e.target.files[0]; if(!file) { document.body.removeChild(input); return; } let reader = new FileReader(); reader.onload = ev => { processPhoto(ev.target.result); document.body.removeChild(input); }; reader.readAsDataURL(file); }; input.click(); }
 };
 
-// 4. Robust Camera/Gallery Fallback for Already Existing Objects
 DiscomApp.UI.captureObjectPhoto = function() {
-    if(!currentSelectedObj) return alert("Error: Object not selected!"); 
-    const id = currentSelectedObj.id;
-    
-    const processPhoto = (base64Data) => { 
-        if(DiscomApp.DB.savePhotoData) DiscomApp.DB.savePhotoData(id, base64Data); 
-        document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; });
-        document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; });
-        DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); 
-    };
-    
-    if (window.cordova && navigator.camera) { 
-        navigator.camera.getPicture((imgData) => { 
-            processPhoto("data:image/jpeg;base64," + imgData); 
-        }, (err) => { 
-            console.warn("Camera cancelled: " + err); 
-        }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); 
-    } else { 
-        let input = document.createElement('input'); 
-        input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; 
-        input.style.display = 'none';
-        document.body.appendChild(input); // Appends to DOM to fix WebView bugs
-        input.onchange = e => { 
-            let file = e.target.files[0]; 
-            if(!file) { document.body.removeChild(input); return; }
-            let reader = new FileReader(); 
-            reader.onload = ev => { 
-                processPhoto(ev.target.result); 
-                document.body.removeChild(input); 
-            }; 
-            reader.readAsDataURL(file); 
-        }; 
-        input.click(); 
-    }
+    if(!currentSelectedObj) return alert("Error: Object not selected!"); const id = currentSelectedObj.id;
+    const processPhoto = (base64Data) => { if(DiscomApp.DB.savePhotoData) DiscomApp.DB.savePhotoData(id, base64Data); document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; }); document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; }); DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); };
+    if (window.cordova && navigator.camera) { navigator.camera.getPicture((imgData) => { processPhoto("data:image/jpeg;base64," + imgData); }, (err) => { console.warn("Camera cancelled"); }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); } else { let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.style.display = 'none'; document.body.appendChild(input); input.onchange = e => { let file = e.target.files[0]; if(!file) { document.body.removeChild(input); return; } let reader = new FileReader(); reader.onload = ev => { processPhoto(ev.target.result); document.body.removeChild(input); }; reader.readAsDataURL(file); }; input.click(); }
 };
 
 DiscomApp.UI.openFullScreenPhoto = function(src) { if(!src || src === '' || src === window.location.href) return; const viewer = document.getElementById('full-photo-viewer'), img = document.getElementById('full-photo-img'); if(viewer && img) { img.src = src; viewer.style.display = 'flex'; } };
 DiscomApp.UI.closeFullScreenPhoto = function() { const viewer = document.getElementById('full-photo-viewer'); if(viewer) viewer.style.display = 'none'; };
-
-// ==========================================
 
 DiscomApp.UI.togglePccConfig = function(id = 'inpMainPoleType', targetId = 'pccConfigDiv') { const pType = document.getElementById(id)?.value; const configDiv = document.getElementById(targetId); if(configDiv) configDiv.style.display = pType === 'PCC' ? 'block' : 'none'; };
 DiscomApp.UI.toggleLineConductor = function(id = 'inpLineType', targetId = 'inpConductor') { const lType = document.getElementById(id)?.value; const sel = document.getElementById(targetId); if(!sel) return; if(lType === '11 KV LINE') { sel.innerHTML = `<option value="Weasel">Weasel</option><option value="Rabbit">Rabbit</option><option value="Dog">Dog</option><option value="Underground Cable">Underground Cable</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'block'; } else { sel.innerHTML = `<option value="Single Phase">Single Phase</option><option value="Three Phase">Three Phase</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'none'; } };
@@ -355,7 +324,8 @@ DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
         setTimeout(() => DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating'), 100);
     } else if (type === 'CONSUMER') {
         if ((net.dts||[]).length === 0) return alert("Must have at least one DT!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); const dtOpts = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('');
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpConsDT" class="form-select" onchange="DiscomApp.UI.filterConsumerPoles()">${dtOpts}</select><label>Parent DT*</label></div><div class="form-row"><select id="inpConsParent" class="form-select"></select><label>Connects To*</label></div></div><div class="form-grid-2"><div class="form-row"><select id="inpConsStatus" class="form-select"><option value="Regular" selected>Regular</option><option value="DC">DC</option><option value="PDC">PDC</option></select><label>Status</label></div><div class="form-row"><select id="inpConsType" class="form-select"><option value="Domestic" selected>Domestic</option><option value="NonDomestic">NonDomestic</option><option value="Agriculture">Agriculture</option><option value="Govt.">Govt.</option><option value="SIP MIP">SIP MIP</option><option value="Other">Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpConsKno" class="form-input" placeholder=" "><label>K-Number*</label></div><div class="form-row"><input type="text" id="inpConsLoad" class="form-input" placeholder=" " value="1 kW"><label>Load</label></div></div><div class="form-row"><input type="text" id="inpConsName" class="form-input" placeholder=" "><label>Consumer Name*</label></div><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewConsumer())">Save Consumer</button>`);
+        // FIX: Consumer Meter Number added here
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpConsDT" class="form-select" onchange="DiscomApp.UI.filterConsumerPoles()">${dtOpts}</select><label>Parent DT*</label></div><div class="form-row"><select id="inpConsParent" class="form-select"></select><label>Connects To*</label></div></div><div class="form-grid-2"><div class="form-row"><select id="inpConsStatus" class="form-select"><option value="Regular" selected>Regular</option><option value="DC">DC</option><option value="PDC">PDC</option></select><label>Status</label></div><div class="form-row"><select id="inpConsType" class="form-select"><option value="Domestic" selected>Domestic</option><option value="NonDomestic">NonDomestic</option><option value="Agriculture">Agriculture</option><option value="Govt.">Govt.</option><option value="SIP MIP">SIP MIP</option><option value="Other">Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsKno" class="form-input" placeholder=" "><label>K-Number*</label></div><div class="form-row"><input type="text" id="inpConsMeter" class="form-input" placeholder=" "><label>Meter No.</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsName" class="form-input" placeholder=" "><label>Consumer Name*</label></div><div class="form-row"><input type="text" id="inpConsLoad" class="form-input" placeholder=" " value="1 kW"><label>Load</label></div></div><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewConsumer())">Save Consumer</button>`);
         setTimeout(() => DiscomApp.UI.filterConsumerPoles(), 100);
     }
 }
@@ -364,7 +334,7 @@ DiscomApp.UI.openEditModal = function(type, id) {
     DiscomApp.UI.closeObjectSheet(); const net = DiscomApp.State.getActiveNetwork();
     if (type === 'gss') {
         const gss = DiscomApp.State.gssNodes[id]; if(!gss) return;
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${gss.code}" disabled><label>GSS Code (Locked)</label></div><div class="form-row"><input type="text" id="editGssName" class="form-input" placeholder=" " value="${gss.name}"><label>GSS Name*</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedGss('${gss.code}'))">Save Changes</button>`); return;
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit GSS</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${gss.code}" disabled><label>GSS Code (Locked)</label></div><div class="form-row"><input type="text" id="editGssName" class="form-input" placeholder=" " value="${gss.name}"><label>GSS Name*</label></div><div class="form-row"><input type="number" id="editGssMva" class="form-input" placeholder=" " value="${gss.mva || ''}"><label>Power Capacity (MVA)</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedGss('${gss.code}'))">Save Changes</button>`); return;
     }
     if(!net) return;
     if (type === 'pole') { 
@@ -375,7 +345,8 @@ DiscomApp.UI.openEditModal = function(type, id) {
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="editDTMounted" class="form-select"><option value="Double Pole (DP)" ${d.mountedOn==='Double Pole (DP)'?'selected':''}>Double Pole (DP)</option><option value="Single Pole (SP)" ${d.mountedOn==='Single Pole (SP)'?'selected':''}>Single Pole (SP)</option><option value="Plinth" ${d.mountedOn==='Plinth'?'selected':''}>Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${d.code}" disabled><label>DT Code (Locked)</label></div><div class="form-row"><select id="editDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating')"><option value="Three Phase" ${d.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${d.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="editDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="editDTLocation" class="form-input" placeholder=" " value="${d.location || ''}"><label>Location</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedDT('${d.id}'))">Save Changes</button>`); setTimeout(() => { DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating'); document.getElementById('editDTRating').value = d.rating; }, 50); 
     } else if (type === 'consumer') { 
         const c = (net.consumers||[]).find(x => x.id === id); if (!c) return; 
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="editConsName" class="form-input" placeholder=" " value="${c.name}"><label>Consumer Name*</label></div><div class="form-grid-2"><div class="form-row"><input type="number" class="form-input" placeholder=" " value="${c.kno}" disabled><label>K-Number (Locked)</label></div><div class="form-row"><input type="text" id="editConsLoad" class="form-input" placeholder=" " value="${c.load||''}"><label>Load</label></div></div><div class="form-grid-2"><div class="form-row"><select id="editConsStatus" class="form-select"><option value="Regular" ${c.status==='Regular'?'selected':''}>Regular</option><option value="DC" ${c.status==='DC'?'selected':''}>DC</option><option value="PDC" ${c.status==='PDC'?'selected':''}>PDC</option></select><label>Status</label></div><div class="form-row"><select id="editConsType" class="form-select"><option value="Domestic" ${c.cType==='Domestic'?'selected':''}>Domestic</option><option value="NonDomestic" ${c.cType==='NonDomestic'?'selected':''}>NonDomestic</option><option value="Agriculture" ${c.cType==='Agriculture'?'selected':''}>Agriculture</option><option value="Govt." ${c.cType==='Govt.'?'selected':''}>Govt.</option><option value="SIP MIP" ${c.cType==='SIP MIP'?'selected':''}>SIP MIP</option><option value="Other" ${c.cType==='Other'?'selected':''}>Other</option></select><label>Type</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedConsumer('${c.id}'))">Save Changes</button>`); 
+        // FIX: Added Meter No for consumer
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsName" class="form-input" placeholder=" " value="${c.name}"><label>Consumer Name*</label></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${c.kno}" disabled><label>K-Number (Locked)</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsMeter" class="form-input" placeholder=" " value="${c.meterNo||''}"><label>Meter No.</label></div><div class="form-row"><input type="text" id="editConsLoad" class="form-input" placeholder=" " value="${c.load||''}"><label>Load</label></div></div><div class="form-grid-2"><div class="form-row"><select id="editConsStatus" class="form-select"><option value="Regular" ${c.status==='Regular'?'selected':''}>Regular</option><option value="DC" ${c.status==='DC'?'selected':''}>DC</option><option value="PDC" ${c.status==='PDC'?'selected':''}>PDC</option></select><label>Status</label></div><div class="form-row"><select id="editConsType" class="form-select"><option value="Domestic" ${c.cType==='Domestic'?'selected':''}>Domestic</option><option value="NonDomestic" ${c.cType==='NonDomestic'?'selected':''}>NonDomestic</option><option value="Agriculture" ${c.cType==='Agriculture'?'selected':''}>Agriculture</option><option value="Govt." ${c.cType==='Govt.'?'selected':''}>Govt.</option><option value="SIP MIP" ${c.cType==='SIP MIP'?'selected':''}>SIP MIP</option><option value="Other" ${c.cType==='Other'?'selected':''}>Other</option></select><label>Type</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedConsumer('${c.id}'))">Save Changes</button>`); 
     } else if (type === 'line') { 
         const l = (net.lines||[]).find(x => x.id === id); if (!l) return; 
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Edit Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${l.type}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${l.type.includes('11')?'block':'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${l.type.includes('11') ? `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>` : `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Save Changes</button>`); 
