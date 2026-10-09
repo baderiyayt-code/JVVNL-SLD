@@ -1,22 +1,6 @@
 /* --- js/5_crud_actions.js --- */
 
-DiscomApp.Map.getPointToSegmentDetails = function(p, a, b) {
-    const R = 6371000; const rad = Math.PI / 180;
-    const px = p.lng * Math.cos(a.lat * rad) * R * rad; const py = p.lat * R * rad;
-    const ax = a.lng * Math.cos(a.lat * rad) * R * rad; const ay = a.lat * R * rad;
-    const bx = b.lng * Math.cos(a.lat * rad) * R * rad; const by = b.lat * R * rad;
-    const lineVecX = bx - ax, lineVecY = by - ay;
-    const ptVecX = px - ax, ptVecY = py - ay;
-    const len_sq = lineVecX * lineVecX + lineVecY * lineVecY;
-    let param = -1;
-    if (len_sq !== 0) { const dot = ptVecX * lineVecX + ptVecY * lineVecY; param = dot / len_sq; }
-    let nearestX, nearestY, isBetween = false;
-    if (param < 0) { nearestX = ax; nearestY = ay; } 
-    else if (param > 1) { nearestX = bx; nearestY = by; } 
-    else { nearestX = ax + param * lineVecX; nearestY = ay + param * lineVecY; isBetween = true; }
-    const dx = px - nearestX, dy = py - nearestY;
-    return { distance: Math.sqrt(dx * dx + dy * dy), isBetween: isBetween };
-};
+DiscomApp.Map.getPointToSegmentDetails = function(p, a, b) { const R = 6371000; const rad = Math.PI / 180; const px = p.lng * Math.cos(a.lat * rad) * R * rad; const py = p.lat * R * rad; const ax = a.lng * Math.cos(a.lat * rad) * R * rad; const ay = a.lat * R * rad; const bx = b.lng * Math.cos(a.lat * rad) * R * rad; const by = b.lat * R * rad; const lineVecX = bx - ax, lineVecY = by - ay; const ptVecX = px - ax, ptVecY = py - ay; const len_sq = lineVecX * lineVecX + lineVecY * lineVecY; let param = -1; if (len_sq !== 0) { const dot = ptVecX * lineVecX + ptVecY * lineVecY; param = dot / len_sq; } let nearestX, nearestY, isBetween = false; if (param < 0) { nearestX = ax; nearestY = ay; } else if (param > 1) { nearestX = bx; nearestY = by; } else { nearestX = ax + param * lineVecX; nearestY = ay + param * lineVecY; isBetween = true; } const dx = px - nearestX, dy = py - nearestY; return { distance: Math.sqrt(dx * dx + dy * dy), isBetween: isBetween }; };
 
 DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     try {
@@ -64,16 +48,44 @@ DiscomApp.CRUD.checkAndSplitLineOnPoleInsert = function(net, newPole) {
     } catch (err) { console.error("Magic Split Logic Error:", err); }
 };
 
+// FIX: GSS Saves MVA now
+DiscomApp.CRUD.saveNewGss = function() { 
+    try {
+        const code = document.getElementById('inpGssCode').value.trim(); const name = document.getElementById('inpGssName').value.trim(); const mva = document.getElementById('inpGssMva').value.trim(); 
+        if (!code || !name) return alert("Enter GSS Code and Name"); 
+        if (!DiscomApp.State.gssNodes) DiscomApp.State.gssNodes = {}; 
+        if (DiscomApp.State.gssNodes[code]) return alert("GSS Code already exists!"); 
+        let centerLat = 26.9150; let centerLng = 75.7830; 
+        if(typeof map !== 'undefined' && map) { const center = map.getCenter(); centerLat = parseFloat(center.lat.toFixed(6)); centerLng = parseFloat(center.lng.toFixed(6)); }
+        DiscomApp.State.gssNodes[code] = { code: code, name: name, mva: mva, lat: centerLat, lng: centerLng, updatedAt: Date.now() }; 
+        DiscomApp.UI.closeModal(); 
+        setTimeout(() => { if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("New GSS added!"); if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); }, 100);
+    } catch(e) { alert("Error saving GSS!"); }
+};
+
+// FIX: Feeder Saves Meter No & Photo
+DiscomApp.CRUD.saveNewFeeder = function() { 
+    try {
+        const gss = document.getElementById('inpFeederGss').value; const code = document.getElementById('inpFeederCode').value.trim(); const name = document.getElementById('inpFeederName').value.trim(); const meter = document.getElementById('inpFeederMeter').value.trim(); 
+        if(!gss || !code || !name) return alert("All fields are required"); 
+        if(!DiscomApp.State.feeders) DiscomApp.State.feeders = {}; 
+        if(DiscomApp.State.feeders[code]) return alert("Feeder code already exists"); 
+        DiscomApp.State.feeders[code] = { feeder: { name: name, code: code, subdivCode: "SD-01", parentGss: gss, meterNo: meter }, poles: [], dts: [], lines: [], consumers: [] }; 
+        DiscomApp.State.currentFeederCode = code; 
+        if(tempPhotoUrl) { DiscomApp.DB.savePhotoData('FEEDER_' + code, tempPhotoUrl); tempPhotoUrl = null; }
+        DiscomApp.UI.closeModal(); 
+        setTimeout(() => { if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Feeder Added!"); }, 100);
+    } catch (e) { alert("Error saving feeder!"); }
+};
+
 DiscomApp.CRUD.saveNewPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const poleNo = document.getElementById('inpPoleNo').value.trim(), pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value, pConf = document.getElementById('inpPccConfig').value;
     if(!poleNo) { alert("Pole Number is required!"); return false; }
     if((net.poles||[]).some(p => String(p.poleNo) === poleNo && p.lineType !== 'LT')) { alert("HT Pole Number already exists!"); return false; }
-    
     DiscomApp.State.saveSnapshot();
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'HT', poleType: pType, condition: pCond, poleConfig: pConf, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    
     net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
     DiscomApp.State.placementType = null; return true;
 };
@@ -82,19 +94,12 @@ DiscomApp.CRUD.saveNewLTPole = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const dt = document.getElementById('inpLTPoleDT').value, pType = document.getElementById('inpMainPoleType').value, pCond = document.getElementById('inpPoleCondition').value;
     if(!dt) { alert("Associated DT is required!"); return false; }
-    
     let dtCodeClean = dt.replace('DT_',''); let maxL = 0; 
-    (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === dtCodeClean).forEach(p => { 
-        const pts = String(p.poleNo).split('-'); 
-        if(pts.length > 1) { const num = parseInt(pts[1]); if(!isNaN(num) && num > maxL) maxL = num; } 
-    });
-    
+    (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === dtCodeClean).forEach(p => { const pts = String(p.poleNo).split('-'); if(pts.length > 1) { const num = parseInt(pts[1]); if(!isNaN(num) && num > maxL) maxL = num; } });
     const poleNo = dtCodeClean + '-' + (maxL + 1);
     DiscomApp.State.saveSnapshot();
-    
     const newObj = { id: 'POLE_' + Date.now(), poleNo: poleNo, lineType: 'LT', dtCode: dtCodeClean, poleType: pType, condition: pCond, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-    
     net.poles.push(newObj); DiscomApp.CRUD.checkAndSplitLineOnPoleInsert(net, newObj);
     DiscomApp.State.placementType = null; return true;
 };
@@ -103,29 +108,13 @@ window.networkValidatorWorker = new Worker('js/loop_worker.js');
 DiscomApp.CRUD.saveNewLine = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
     const type = document.getElementById('inpLineType').value, phase = document.getElementById('inpLinePhase') ? document.getElementById('inpLinePhase').value : '', cond = document.getElementById('inpConductor').value, fNode = document.getElementById('inpFromNode').value, tNode = document.getElementById('inpToNode').value;
-    
     if(!fNode || !tNode || fNode === tNode) { alert("Invalid From/To nodes!"); return false; }
     if((net.lines||[]).some(l => (l.fromNode === fNode && l.toNode === tNode) || (l.fromNode === tNode && l.toNode === fNode))) { alert("This line route already exists!"); return false; }
-    
     DiscomApp.UI.showToast("⏳ Checking topology...");
     const newObj = { id: 'LINE_' + Date.now(), type: type, phase: phase, conductor: cond, fromNode: fNode, toNode: tNode, synced: false, updatedAt: Date.now() };
-    const isLT = type && type.includes('LT');
-    const tempLines = [...(net.lines||[]), newObj];
-    
+    const isLT = type && type.includes('LT'); const tempLines = [...(net.lines||[]), newObj];
     window.networkValidatorWorker.postMessage({ lines: tempLines, poles: net.poles, dts: net.dts, gssNodes: DiscomApp.State.gssNodes, feeder: net.feeder, networkType: isLT ? 'LT' : 'HT' });
-    window.networkValidatorWorker.onmessage = function(e) {
-        if (e.data.hasLoop) { 
-            alert(e.data.message); 
-        } else {
-            DiscomApp.State.saveSnapshot();
-            net.lines.push(newObj); 
-            if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
-            DiscomApp.UI.showToast("✅ Line saved successfully!");
-            DiscomApp.UI.closeModal();
-            DiscomApp.Map.renderEntireNetwork(); 
-            DiscomApp.DB.triggerPersistence();
-        }
-    };
+    window.networkValidatorWorker.onmessage = function(e) { if (e.data.hasLoop) { alert(e.data.message); } else { DiscomApp.State.saveSnapshot(); net.lines.push(newObj); if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; } DiscomApp.UI.showToast("✅ Line saved successfully!"); DiscomApp.UI.closeModal(); DiscomApp.Map.renderEntireNetwork(); DiscomApp.DB.triggerPersistence(); } };
     return 'ASYNC';
 };
 
@@ -142,75 +131,45 @@ DiscomApp.CRUD.saveNewDT = function() {
     net.dts.push(newObj); DiscomApp.State.placementType = null; return true;
 };
 
+// FIX: Consumer Saves Meter No
 DiscomApp.CRUD.saveNewConsumer = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return false;
-    const dt = document.getElementById('inpConsDT').value, parent = document.getElementById('inpConsParent').value, status = document.getElementById('inpConsStatus').value, cType = document.getElementById('inpConsType').value, kno = document.getElementById('inpConsKno').value.trim(), load = document.getElementById('inpConsLoad').value, name = document.getElementById('inpConsName').value.trim();
+    const dt = document.getElementById('inpConsDT').value, parent = document.getElementById('inpConsParent').value, status = document.getElementById('inpConsStatus').value, cType = document.getElementById('inpConsType').value, kno = document.getElementById('inpConsKno').value.trim(), load = document.getElementById('inpConsLoad').value, name = document.getElementById('inpConsName').value.trim(), meter = document.getElementById('inpConsMeter').value.trim();
     if(!dt || !parent || !kno || !name) { alert("Missing K-No or Name!"); return false; }
     if((net.consumers||[]).some(c => String(c.kno) === kno)) { alert(`Consumer K-Number ${kno} already exists!`); return false; }
     DiscomApp.State.saveSnapshot();
-    const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
+    const newObj = { id: 'CONS_' + Date.now(), parentType: parent.startsWith('DT_') ? 'DT' : 'POLE', parentRef: parent.replace('POLE_','').replace('DT_',''), status: status, cType: cType, kno: kno, meterNo: meter, load: load, name: name, lat: parseFloat(document.getElementById('inpLat').value), lng: parseFloat(document.getElementById('inpLng').value), synced: false, updatedAt: Date.now() };
     if(tempPhotoUrl) { DiscomApp.DB.savePhotoData(newObj.id, tempPhotoUrl); tempPhotoUrl = null; }
     net.consumers.push(newObj); DiscomApp.State.placementType = null; return true;
 };
 
-DiscomApp.CRUD.saveEditedGss = function(code) { const gss = DiscomApp.State.gssNodes[code]; if(!gss) return false; const newName = document.getElementById('editGssName').value.trim(); if(!newName) { alert("Name is required"); return false; } DiscomApp.State.saveSnapshot(); gss.name = newName; gss.updatedAt = Date.now(); gss.synced = false; return true; };
-DiscomApp.CRUD.saveEditedFeeder = function(code) { 
-    try { const newName = document.getElementById('editFeederName').value.trim(); if(!newName) return alert("Enter new name"); if(DiscomApp.State.feeders[code]) { DiscomApp.State.feeders[code].feeder.name = newName; if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); DiscomApp.UI.closeModal(); if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Feeder Updated!"); } } catch (e) { console.error(e); }
-};
-
+// FIX: Edits Save updated fields
+DiscomApp.CRUD.saveEditedGss = function(code) { const gss = DiscomApp.State.gssNodes[code]; if(!gss) return false; const newName = document.getElementById('editGssName').value.trim(); const newMva = document.getElementById('editGssMva').value.trim(); if(!newName) { alert("Name is required"); return false; } DiscomApp.State.saveSnapshot(); gss.name = newName; gss.mva = newMva; gss.updatedAt = Date.now(); gss.synced = false; return true; };
+DiscomApp.CRUD.saveEditedFeeder = function(code) { try { const newName = document.getElementById('editFeederName').value.trim(); const newMeter = document.getElementById('editFeederMeter').value.trim(); if(!newName) return alert("Enter new name"); if(DiscomApp.State.feeders[code]) { DiscomApp.State.feeders[code].feeder.name = newName; DiscomApp.State.feeders[code].feeder.meterNo = newMeter; if(DiscomApp.DB.triggerPersistence) DiscomApp.DB.triggerPersistence(); DiscomApp.UI.closeModal(); if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); if(DiscomApp.UI.showToast) DiscomApp.UI.showToast("Feeder Updated!"); } } catch (e) { console.error(e); } };
 DiscomApp.CRUD.saveEditedPole = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const p = (net.poles||[]).find(x => x.id === id); if(!p) return false; DiscomApp.State.saveSnapshot(); p.poleType = document.getElementById('editMainPoleType').value; p.condition = document.getElementById('editPoleCondition').value; p.poleConfig = document.getElementById('editPccConfig') ? document.getElementById('editPccConfig').value : p.poleConfig; p.updatedAt = Date.now(); p.synced = false; return true; };
 DiscomApp.CRUD.saveEditedDT = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const d = (net.dts||[]).find(x => x.id === id); if(!d) return false; DiscomApp.State.saveSnapshot(); d.mountedOn = document.getElementById('editDTMounted').value; d.phase = document.getElementById('editDTPhase').value; d.rating = document.getElementById('editDTRating').value; d.location = document.getElementById('editDTLocation').value; d.updatedAt = Date.now(); d.synced = false; return true; };
-DiscomApp.CRUD.saveEditedConsumer = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const c = (net.consumers||[]).find(x => x.id === id); if(!c) return false; DiscomApp.State.saveSnapshot(); c.name = document.getElementById('editConsName').value.trim(); c.load = document.getElementById('editConsLoad').value; c.status = document.getElementById('editConsStatus').value; c.cType = document.getElementById('editConsType').value; if(!c.name) { alert("Name required"); return false; } c.updatedAt = Date.now(); c.synced = false; return true; };
+DiscomApp.CRUD.saveEditedConsumer = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const c = (net.consumers||[]).find(x => x.id === id); if(!c) return false; DiscomApp.State.saveSnapshot(); c.name = document.getElementById('editConsName').value.trim(); c.load = document.getElementById('editConsLoad').value; c.status = document.getElementById('editConsStatus').value; c.cType = document.getElementById('editConsType').value; c.meterNo = document.getElementById('editConsMeter').value.trim(); if(!c.name) { alert("Name required"); return false; } c.updatedAt = Date.now(); c.synced = false; return true; };
 DiscomApp.CRUD.saveEditedLine = function(id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return false; const l = (net.lines||[]).find(x => x.id === id); if(!l) return false; DiscomApp.State.saveSnapshot(); l.phase = document.getElementById('editLinePhase') ? document.getElementById('editLinePhase').value : l.phase; l.conductor = document.getElementById('editLineConductor').value; l.updatedAt = Date.now(); l.synced = false; return true; };
 
-// ==========================================
-// CASCADING DELETE FIX (No more ghost lines)
-// ==========================================
 DiscomApp.CRUD.deleteEntity = function(type, id) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     if(!confirm("Are you sure you want to delete this?")) return;
     DiscomApp.State.saveSnapshot();
-    if(!DiscomApp.State.deletedObjectIds) DiscomApp.State.deletedObjectIds = [];
-    DiscomApp.State.deletedObjectIds.push(id);
-    
-    let nodeRefs = []; // Array to track references like 'POLE_12' or 'DT_100'
+    if(!DiscomApp.State.deletedObjectIds) DiscomApp.State.deletedObjectIds = []; DiscomApp.State.deletedObjectIds.push(id);
+    let nodeRefs = []; 
 
-    if (type === 'pole') { 
-        const p = net.poles.find(x => x.id === id);
-        if(p) { nodeRefs.push('POLE_' + p.poleNo); nodeRefs.push(p.id); }
-        net.poles = net.poles.filter(x => x.id !== id); 
-    } 
-    else if (type === 'dt') { 
-        const d = net.dts.find(x => x.id === id);
-        if(d) { nodeRefs.push('DT_' + d.code); nodeRefs.push(d.id); }
-        net.dts = net.dts.filter(x => x.id !== id); 
-    } 
-    else if (type === 'consumer') { 
-        net.consumers = net.consumers.filter(x => x.id !== id); 
-    } 
-    else if (type === 'line') { 
-        net.lines = net.lines.filter(x => x.id !== id); 
-    }
+    if (type === 'pole') { const p = net.poles.find(x => x.id === id); if(p) { nodeRefs.push('POLE_' + p.poleNo); nodeRefs.push(p.id); } net.poles = net.poles.filter(x => x.id !== id); } 
+    else if (type === 'dt') { const d = net.dts.find(x => x.id === id); if(d) { nodeRefs.push('DT_' + d.code); nodeRefs.push(d.id); } net.dts = net.dts.filter(x => x.id !== id); } 
+    else if (type === 'consumer') { net.consumers = net.consumers.filter(x => x.id !== id); } 
+    else if (type === 'line') { net.lines = net.lines.filter(x => x.id !== id); }
     
-    // Check and Delete ANY connected lines & consumers
     if (nodeRefs.length > 0) {
-        if (net.lines) {
-            const linesToDelete = net.lines.filter(l => nodeRefs.includes(String(l.fromNode)) || nodeRefs.includes(String(l.toNode)));
-            linesToDelete.forEach(l => DiscomApp.State.deletedObjectIds.push(l.id)); // Tell cloud to delete line
-            net.lines = net.lines.filter(l => !nodeRefs.includes(String(l.fromNode)) && !nodeRefs.includes(String(l.toNode)));
-        }
-        if (net.consumers) {
-            let refValues = nodeRefs.map(r => r.replace('POLE_', '').replace('DT_', ''));
-            const consToDelete = net.consumers.filter(c => refValues.includes(String(c.parentRef)));
-            consToDelete.forEach(c => DiscomApp.State.deletedObjectIds.push(c.id)); // Tell cloud to delete consumer
-            net.consumers = net.consumers.filter(c => !refValues.includes(String(c.parentRef)));
-        }
+        if (net.lines) { const linesToDelete = net.lines.filter(l => nodeRefs.includes(String(l.fromNode)) || nodeRefs.includes(String(l.toNode))); linesToDelete.forEach(l => DiscomApp.State.deletedObjectIds.push(l.id)); net.lines = net.lines.filter(l => !nodeRefs.includes(String(l.fromNode)) && !nodeRefs.includes(String(l.toNode))); }
+        if (net.consumers) { let refValues = nodeRefs.map(r => r.replace('POLE_', '').replace('DT_', '')); const consToDelete = net.consumers.filter(c => refValues.includes(String(c.parentRef))); consToDelete.forEach(c => DiscomApp.State.deletedObjectIds.push(c.id)); net.consumers = net.consumers.filter(c => !refValues.includes(String(c.parentRef))); }
     }
     
     if(typeof localforage !== 'undefined') localforage.removeItem('PHOTO_DATA_' + id); else localStorage.removeItem('PHOTO_DATA_' + id);
-    DiscomApp.Map.renderEntireNetwork(); 
-    DiscomApp.DB.triggerPersistence(); 
-    DiscomApp.UI.showToast("Deleted successfully");
+    DiscomApp.Map.renderEntireNetwork(); DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Deleted successfully");
 };
 
 DiscomApp.CRUD.deleteFeederStrict = function(code) { 
@@ -231,56 +190,28 @@ DiscomApp.CRUD.deleteGssAndFeederStrict = function(code) {
 };
 
 DiscomApp.CRUD.relocateGss = function(gssCode) { if(DiscomApp.UI.closeObjectSheet) DiscomApp.UI.closeObjectSheet(); DiscomApp.UI.toggleSidebar(false); if(DiscomApp.CRUD.startObjectMove) DiscomApp.CRUD.startObjectMove('GSS', gssCode, `GSS (${gssCode})`); };
-
 DiscomApp.CRUD.startObjectMove = function(type, id, title) { 
     DiscomApp.State.activeMove = { type, id }; document.getElementById('center-placement-pin').style.display = 'block'; DiscomApp.UI.closeObjectSheet(); 
     let moveBar = document.getElementById('move-confirm-bar'); 
     if(!moveBar) { moveBar = document.createElement('div'); moveBar.id = 'move-confirm-bar'; moveBar.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:10px; width:90%; max-width:400px; pointer-events:auto;'; moveBar.innerHTML = `<button class="btn-danger-outline" style="background:white; flex:1;" onclick="DiscomApp.CRUD.cancelMove()">Cancel</button><button class="btn-action-primary" style="flex:1;" onclick="DiscomApp.CRUD.confirmMove()">Set New Location</button>`; document.body.appendChild(moveBar); if(typeof L !== 'undefined' && L.DomEvent) { L.DomEvent.disableClickPropagation(moveBar); L.DomEvent.disableScrollPropagation(moveBar); } } 
     moveBar.style.display = 'flex'; document.getElementById('bottom-single-action').style.display = 'none'; DiscomApp.UI.showToast("Pan map to new location..."); 
 };
-
 DiscomApp.CRUD.cancelMove = function() { DiscomApp.State.activeMove = null; document.getElementById('center-placement-pin').style.display = 'none'; document.getElementById('move-confirm-bar').style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; DiscomApp.Map.renderEntireNetwork(); };
-
 DiscomApp.CRUD.confirmMove = function() { 
     if(!DiscomApp.State.activeMove) return; 
     const center = map.getCenter(); const net = DiscomApp.State.getActiveNetwork(); DiscomApp.State.saveSnapshot(); 
-    const id = DiscomApp.State.activeMove.id; let isUpdated = false;
-    const newLat = parseFloat(center.lat.toFixed(6));
-    const newLng = parseFloat(center.lng.toFixed(6));
-
-    if(DiscomApp.State.gssNodes && DiscomApp.State.gssNodes[id]) { 
-        DiscomApp.State.gssNodes[id].lat = newLat; 
-        DiscomApp.State.gssNodes[id].lng = newLng; 
-        DiscomApp.State.gssNodes[id].updatedAt = Date.now(); 
-        DiscomApp.State.gssNodes[id].synced = false; 
-        isUpdated = true; 
-    } 
+    const id = DiscomApp.State.activeMove.id; let isUpdated = false; const newLat = parseFloat(center.lat.toFixed(6)); const newLng = parseFloat(center.lng.toFixed(6));
+    if(DiscomApp.State.gssNodes && DiscomApp.State.gssNodes[id]) { DiscomApp.State.gssNodes[id].lat = newLat; DiscomApp.State.gssNodes[id].lng = newLng; DiscomApp.State.gssNodes[id].updatedAt = Date.now(); DiscomApp.State.gssNodes[id].synced = false; isUpdated = true; } 
     if (net && !isUpdated) {
         const arraysToCheck = ['poles', 'dts', 'consumers'];
         for (let arrName of arraysToCheck) {
             let targetObj = (net[arrName] || []).find(x => x.id === id);
             if (targetObj) { 
-                targetObj.lat = newLat; 
-                targetObj.lng = newLng; 
-                targetObj.updatedAt = Date.now(); 
-                targetObj.synced = false; 
-                isUpdated = true; 
-                
-                if (arrName === 'poles') {
-                    (net.dts || []).forEach(dt => {
-                        if (String(dt.parentPole) === String(targetObj.poleNo)) {
-                            dt.lat = newLat; 
-                            dt.lng = newLng;
-                            dt.updatedAt = Date.now(); 
-                            dt.synced = false;
-                        }
-                    });
-                }
+                targetObj.lat = newLat; targetObj.lng = newLng; targetObj.updatedAt = Date.now(); targetObj.synced = false; isUpdated = true; 
+                if (arrName === 'poles') { (net.dts || []).forEach(dt => { if (String(dt.parentPole) === String(targetObj.poleNo)) { dt.lat = newLat; dt.lng = newLng; dt.updatedAt = Date.now(); dt.synced = false; } }); }
                 break; 
             }
         }
     }
-    DiscomApp.CRUD.cancelMove(); 
-    if(isUpdated) { DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Location Updated & Synced!"); } 
-    else { DiscomApp.UI.showToast("Error: Object not found to move."); }
+    DiscomApp.CRUD.cancelMove(); if(isUpdated) { DiscomApp.DB.triggerPersistence(); DiscomApp.UI.showToast("Location Updated & Synced!"); } else { DiscomApp.UI.showToast("Error: Object not found to move."); }
 };
