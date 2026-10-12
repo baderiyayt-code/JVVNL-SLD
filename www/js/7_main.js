@@ -42,12 +42,14 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
                 if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
                 if(DiscomApp.DB.updateUnsyncedBadge) DiscomApp.DB.updateUnsyncedBadge(); 
                 
-                // FIX: Set App Mode toggle button visually to default 'Inspect' state on boot
+                // Set Default UI to Inspect Mode (Hide FAB)
                 const btn = document.getElementById('modeToggleBtn');
                 if(btn) {
                     btn.innerHTML = DiscomApp.State.appMode === 'edit' ? '<i class="fa-solid fa-pen-ruler"></i>' : '<i class="fa-solid fa-eye"></i>';
                     btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981';
                 }
+                const fabContainer = document.getElementById('bottom-single-action');
+                if(fabContainer) { fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none'; }
             }, 300); 
         } else { 
             document.getElementById('app-container').style.display = 'none'; document.getElementById('auth-screen').style.display = 'flex'; 
