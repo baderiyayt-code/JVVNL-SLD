@@ -23,6 +23,7 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         if (data) { 
             if(data.feeders) DiscomApp.State.feeders = data.feeders;
             if(data.gssNodes) DiscomApp.State.gssNodes = data.gssNodes;
+            // FIX: Ensure default setting overrides
             if(data.settings) DiscomApp.State.settings = { ...DiscomApp.State.settings, ...data.settings };
             if(data.user) DiscomApp.State.user = { ...DiscomApp.State.user, ...data.user };
             if(data.currentFeederCode) DiscomApp.State.currentFeederCode = data.currentFeederCode;
@@ -37,6 +38,10 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
             if(DiscomApp.UI.applyAuthUIVisuals) DiscomApp.UI.applyAuthUIVisuals(); 
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
+                
+                // Force App Mode to Inspect on Boot
+                DiscomApp.State.appMode = 'inspect';
+                
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
                 if(DiscomApp.Map.centerMapOnLastObjectOrGSS) DiscomApp.Map.centerMapOnLastObjectOrGSS(); 
                 if(DiscomApp.UI.checkOnboardingFlow) DiscomApp.UI.checkOnboardingFlow(); 
@@ -44,13 +49,12 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
                 
                 const btn = document.getElementById('modeToggleBtn');
                 if(btn) {
-                    btn.innerHTML = DiscomApp.State.appMode === 'edit' ? '<i class="fa-solid fa-pen-ruler"></i>' : '<i class="fa-solid fa-eye"></i>';
-                    btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981';
+                    btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
+                    btn.style.color = '#10b981';
                 }
                 
-                // FIX: Hide FAB Button completely on boot for Inspect mode
                 const fabContainer = document.getElementById('bottom-single-action');
-                if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none';
+                if(fabContainer) fabContainer.style.display = 'none';
                 
             }, 300); 
         } else { 
