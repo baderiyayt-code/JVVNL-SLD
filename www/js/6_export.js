@@ -78,15 +78,15 @@ DiscomApp.Export.generateCadSLDPdf = function() {
 
         nodes.forEach(n => {
             const pos = mapToPdf(n.lat, n.lng);
-            // FIX: SLD GSS TEXT MISSING and DT BORDER
+            // FIX: Perfected GSS Rendering and DT Thin Borders
             if(n.type === 'GSS') { 
-                doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.setFillColor(220, 38, 38); 
+                doc.setDrawColor(0,0,0); doc.setLineWidth(0.2); doc.setFillColor(220, 38, 38); 
                 doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); 
-                doc.setFontSize(3.5); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.5, { align: 'center' }); 
-                doc.setFontSize(3); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS", pos.x, pos.y + 3.5, { align: 'center' });
+                doc.setFontSize(3.0); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.8, { align: 'center' }); 
+                doc.setFontSize(2.5); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS", pos.x, pos.y + 3.5, { align: 'center' });
             } 
             else if(n.type === 'DT') { 
-                doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); // Thin border
+                doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); 
                 doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); 
             } 
             else if(n.type === 'POLE') { 
@@ -96,7 +96,7 @@ DiscomApp.Export.generateCadSLDPdf = function() {
                     dts.forEach((dt, idx) => {
                         let offsetX = 0, offsetY = 1.0; 
                         if(dts.length > 1) { if(idx === 0) offsetX = -1.0; else if(idx === 1) offsetX = 1.0; }
-                        doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); // Thin border
+                        doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); 
                         doc.rect(pos.x + offsetX - 0.75, pos.y + offsetY - 0.75, 1.5, 1.5, 'FD'); 
                         doc.setFontSize(2.0); doc.setTextColor(0,0,0); doc.text(String(dt.rating).replace(/[^0-9]/g, ''), pos.x + offsetX, pos.y + offsetY + 0.4, { align: 'center' });
                     });
