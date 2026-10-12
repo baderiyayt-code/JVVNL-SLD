@@ -94,9 +94,8 @@
         <div id="center-placement-pin"><i class="fa-solid fa-location-dot" style="color:#ef4444; filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5));"></i></div>
         <div id="live-distance-indicator"></div>
 
-        <!-- FIX: INSPECT/EDIT MODE TOGGLE ADDED HERE -->
         <div class="right-tools-stack">
-            <div class="round-tool-btn" id="modeToggleBtn" onclick="window.toggleAppMode()" title="Toggle Inspect/Edit Mode" style="color:var(--text-main);"><i class="fa-solid fa-pen-ruler"></i></div>
+            <div class="round-tool-btn" id="modeToggleBtn" onclick="window.toggleAppMode()" title="Toggle Inspect/Update Mode" style="color:var(--text-main);"><i class="fa-solid fa-pen-ruler"></i></div>
             <div class="round-tool-btn" onclick="DiscomApp.Map.toggleMapLayer()"><i class="fa-solid fa-layer-group"></i></div>
             <div class="round-tool-btn" onclick="DiscomApp.UI.openFilterModal()" style="color:#d97706;" title="Filters"><i class="fa-solid fa-filter"></i></div>
             <div class="round-tool-btn" id="liveTrackBtn" onclick="DiscomApp.Main.toggleLiveTracking()"><i class="fa-solid fa-crosshairs"></i></div>
@@ -159,7 +158,7 @@
         </div>
     </div>
 
-    <!-- FIX: Close button added directly to Object Bottom Sheet HTML -->
+    <!-- UPDATE/RELOCATE TEXT FIX -->
     <div class="object-bottom-sheet" id="object-bottom-sheet">
         <div class="sheet-drag-handle" onclick="DiscomApp.UI.closeObjectSheet()"></div>
         <button onclick="DiscomApp.UI.closeObjectSheet()" style="position:absolute; top:15px; right:15px; background:var(--bg-glass); border:1px solid var(--border); width:36px; height:36px; border-radius:50%; font-size:1rem; color:var(--text-sub); cursor:pointer; z-index:10;"><i class="fa-solid fa-xmark"></i></button>
@@ -174,8 +173,8 @@
             </div>
         </div>
         <div style="display:flex; gap:10px;">
-            <button class="btn-action-primary" id="btnObjEdit" style="flex:1; background:var(--bg-glass); color:var(--text-main); border:1px solid var(--border);"><i class="fa-solid fa-pen"></i> Edit</button>
-            <button class="btn-action-primary" id="btnObjMove" style="flex:1;"><i class="fa-solid fa-arrows-up-down-left-right"></i> Move</button>
+            <button class="btn-action-primary" id="btnObjEdit" style="flex:1; background:var(--bg-glass); color:var(--text-main); border:1px solid var(--border);"><i class="fa-solid fa-pen"></i> Update</button>
+            <button class="btn-action-primary" id="btnObjMove" style="flex:1;"><i class="fa-solid fa-arrows-up-down-left-right"></i> Relocate</button>
             <button class="btn-action-primary" id="btnObjDelete" style="flex:1; background:#ef4444;"><i class="fa-solid fa-trash"></i> Delete</button>
         </div>
         <button class="btn-action-primary" id="btnObjCapture" style="margin-top:10px; width:100%; background:#0f172a;" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Capture New Photo</button>
