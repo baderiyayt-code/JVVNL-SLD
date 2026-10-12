@@ -84,11 +84,20 @@ DiscomApp.UI.executeSafeSave = function(actionFn) {
 
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); };
 
+// FIX: Added 'justOpenedSheet' lock to prevent Map click from immediately closing the Line sheet
+DiscomApp.UI.justOpenedSheet = false;
+
 document.addEventListener('click', function(e) { 
+    if (DiscomApp.UI.justOpenedSheet) return;
+    
     const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); 
     if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } 
+    
     const sheet = document.getElementById('object-bottom-sheet');
-    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('path')) { DiscomApp.UI.closeObjectSheet(); }
+    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm')) { 
+        DiscomApp.UI.closeObjectSheet(); 
+    }
+    
     const modal = document.getElementById('formModalOverlay');
     if(modal && modal.classList.contains('open') && e.target === modal) { DiscomApp.UI.closeModal(); }
 });
@@ -136,7 +145,6 @@ window.toggleKPIBar = function() {
     else { kpi.classList.add('collapsed'); icon.className = 'fa-solid fa-chevron-down'; }
 };
 
-// FIX: FAB Button Hide/Show in App Mode
 window.toggleAppMode = function() {
     DiscomApp.State.appMode = DiscomApp.State.appMode === 'edit' ? 'inspect' : 'edit';
     const btn = document.getElementById('modeToggleBtn');
@@ -145,7 +153,6 @@ window.toggleAppMode = function() {
         btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981';
     }
     
-    // Toggle FAB Visibility based on mode
     const fabContainer = document.getElementById('bottom-single-action');
     if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none';
     
@@ -166,6 +173,9 @@ DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.Sta
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
 DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml, updatedAt = null) {
+    DiscomApp.UI.justOpenedSheet = true;
+    setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
+    
     currentSelectedObj = { type, id }; 
     document.getElementById('objSheetTitle').innerText = title; 
     let timeStr = `<div style="margin-top:8px; font-size:0.75rem; color:var(--text-sub);"><i class="fa-regular fa-clock"></i> Last Updated: ${DiscomApp.UI.formatTime(updatedAt || Date.now())}</div>`;
@@ -192,6 +202,10 @@ DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml, updatedAt 
 DiscomApp.UI.openDTFromSVG = function(e, id) {
     if(e) e.stopPropagation(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     const d = (net.dts||[]).find(x => x.id === id); if(!d) return; currentSelectedObj = { type: 'DT', id: d.id };
+    
+    DiscomApp.UI.justOpenedSheet = true;
+    setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
+
     const connectedConsumers = [];
     (net.consumers||[]).forEach(c => { let isConnected = false; if(String(c.parentRef) === String(d.code) || String(c.parentRef) === String('DT_' + d.code)) isConnected = true; else { const pole = (net.poles||[]).find(p => String(p.poleNo) === String(c.parentRef) || String(p.id) === String('POLE_' + c.parentRef)); if(pole && String(pole.dtCode) === String(d.code)) isConnected = true; } if(isConnected) connectedConsumers.push(c); });
     let totalLoadKW = 0; connectedConsumers.forEach(c => { const numMatch = String(c.load || '0').match(/[\d.]+/); if(numMatch) totalLoadKW += parseFloat(numMatch[0]) || 0; });
@@ -302,12 +316,8 @@ DiscomApp.UI.openAddForm = function(type) {
     } else { DiscomApp.UI.showFormModal(type, null, null); } 
 }
 
-DiscomApp.UI.confirmPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; document.getElementById('bottom-single-action').style.display = 'block'; const center = map.getCenter(); DiscomApp.UI.showFormModal(DiscomApp.State.placementType, parseFloat(center.lat.toFixed(6)), parseFloat(center.lng.toFixed(6))); }
-DiscomApp.UI.cancelPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; 
-    // Always hide FAB if in inspect mode
-    const fabContainer = document.getElementById('bottom-single-action');
-    if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none';
-}
+DiscomApp.UI.confirmPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; const fabContainer = document.getElementById('bottom-single-action'); if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none'; const center = map.getCenter(); DiscomApp.UI.showFormModal(DiscomApp.State.placementType, parseFloat(center.lat.toFixed(6)), parseFloat(center.lng.toFixed(6))); }
+DiscomApp.UI.cancelPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; const fabContainer = document.getElementById('bottom-single-action'); if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none'; }
 
 DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let center = { lat: 26.91, lng: 75.78 }; if(map) center = map.getCenter(); snapLat = snapLat || parseFloat(center.lat.toFixed(6)); snapLng = snapLng || parseFloat(center.lng.toFixed(6)); tempPhotoUrl = null;
@@ -323,7 +333,7 @@ DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
     } else if (type === 'DT') {
         let parentNodes = (net.poles||[]).filter(p => p.lineType !== 'LT').map(p => ({id: 'POLE_'+p.poleNo, title: 'HT Pole '+p.poleNo, lat: p.lat, lng: p.lng})); const feederGss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if(feederGss) parentNodes.push({id: 'GSS_'+feederGss.code, title: 'GSS '+feederGss.code, lat: feederGss.lat, lng: feederGss.lng});
         parentNodes = DiscomApp.Map.sortByDistance(parentNodes, snapLat, snapLng); const parentOpts = parentNodes.map(p => `<option value="${p.id}">${p.title} (${DiscomApp.Map.getDistStr(p.lat, p.lng)})</option>`).join('');
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpDTParent" class="form-select">${parentOpts}</select><label>Connected To (HT Node)*</label></div><div class="form-row"><select id="inpDTMounted" class="form-select"><option value="Double Pole (DP)" selected>Double Pole (DP)</option><option value="Single Pole (SP)">Single Pole (SP)</option><option value="Plinth">Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpDTCode" class="form-input" placeholder=" " value="${Math.floor(Math.random()*9000)}"><label>DT Code*</label></div><div class="form-row"><select id="inpDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating')"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="inpDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="inpDTLocation" class="form-input" placeholder=" "><label>Location / Landmark</label></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewDT())">Save DT</button>`);
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpDTParent" class="form-select">${parentOpts}</select><label>Connected To (HT Node)*</label></div><div class="form-row"><select id="inpDTMounted" class="form-select"><option value="Double Pole (DP)" selected>Double Pole (DP)</option><option value="Single Pole (SP)" selected>Single Pole (SP)</option><option value="Plinth">Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpDTCode" class="form-input" placeholder=" " value="${Math.floor(Math.random()*9000)}"><label>DT Code*</label></div><div class="form-row"><select id="inpDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating')"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="inpDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="inpDTLocation" class="form-input" placeholder=" "><label>Location / Landmark</label></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewDT())">Save DT</button>`);
         setTimeout(() => DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating'), 100);
     } else if (type === 'CONSUMER') {
         if ((net.dts||[]).length === 0) return alert("Must have at least one DT!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); const dtOpts = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('');
@@ -332,7 +342,6 @@ DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
     }
 }
 
-// FIX: Safe backticks resolution for Line Edit logic
 DiscomApp.UI.openEditModal = function(type, id) {
     DiscomApp.UI.closeObjectSheet(); const net = DiscomApp.State.getActiveNetwork();
     if (type === 'gss') {
@@ -350,10 +359,17 @@ DiscomApp.UI.openEditModal = function(type, id) {
         const c = (net.consumers||[]).find(x => x.id === id); if (!c) return; 
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsName" class="form-input" placeholder=" " value="${c.name}"><label>Consumer Name*</label></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${c.kno}" disabled><label>K-Number (Locked)</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsMeter" class="form-input" placeholder=" " value="${c.meterNo||''}"><label>Meter No.</label></div><div class="form-row"><input type="text" id="editConsLoad" class="form-input" placeholder=" " value="${c.load||''}"><label>Load</label></div></div><div class="form-grid-2"><div class="form-row"><select id="editConsStatus" class="form-select"><option value="Regular" ${c.status==='Regular'?'selected':''}>Regular</option><option value="DC" ${c.status==='DC'?'selected':''}>DC</option><option value="PDC" ${c.status==='PDC'?'selected':''}>PDC</option></select><label>Status</label></div><div class="form-row"><select id="editConsType" class="form-select"><option value="Domestic" ${c.cType==='Domestic'?'selected':''}>Domestic</option><option value="NonDomestic" ${c.cType==='NonDomestic'?'selected':''}>NonDomestic</option><option value="Agriculture" ${c.cType==='Agriculture'?'selected':''}>Agriculture</option><option value="Govt." ${c.cType==='Govt.'?'selected':''}>Govt.</option><option value="SIP MIP" ${c.cType==='SIP MIP'?'selected':''}>SIP MIP</option><option value="Other" ${c.cType==='Other'?'selected':''}>Other</option></select><label>Type</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedConsumer('${c.id}'))">Update Changes</button>`); 
     } else if (type === 'line') { 
+        // FIX: Replaced strict HTML injection to resolve Line Open Bug
         const l = (net.lines||[]).find(x => x.id === id); if (!l) return; 
         const lType = l.type || ''; const isHT = lType.includes('11');
-        // FIX: Replaced nested backticks logic for smooth modal open
-        const condOptions = isHT ? `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>` : `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`;
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${lType}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${isHT ? 'block' : 'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${condOptions}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Update Changes</button>`); 
+        
+        let cOpts = "";
+        if (isHT) {
+            cOpts = `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>`;
+        } else {
+            cOpts = `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`;
+        }
+        
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${lType}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${isHT ? 'block' : 'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${cOpts}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Update Changes</button>`); 
     }
 }
