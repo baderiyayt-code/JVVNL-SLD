@@ -18,7 +18,6 @@ DiscomApp.Export.fallbackBrowserDownload = function(blob, filename) {
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); document.body.removeChild(link); DiscomApp.UI.showToast(`Downloaded: ${filename}`); DiscomApp.UI.closeModal();
 };
 
-// FIX: Improved Boundaries & Feeder Details box in bottom right corner
 DiscomApp.Export.generateCadSLDPdf = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return alert("No active network!");
     if (typeof window.jspdf === 'undefined') return alert("PDF Library loading...");
@@ -54,7 +53,6 @@ DiscomApp.Export.generateCadSLDPdf = function() {
         nodes.forEach(n => { if(n.lat < minLat) minLat = n.lat; if(n.lat > maxLat) maxLat = n.lat; if(n.lng < minLng) minLng = n.lng; if(n.lng > maxLng) maxLng = n.lng; });
         if(maxLat === minLat) { maxLat += 0.001; minLat -= 0.001; } if(maxLng === minLng) { maxLng += 0.001; minLng -= 0.001; }
         
-        // FIX: Increased Padding to keep data inside the box
         const padLat = (maxLat - minLat) * 0.15; const padLng = (maxLng - minLng) * 0.15;
         minLat -= padLat; maxLat += padLat; minLng -= padLng; maxLng += padLng;
         
@@ -80,23 +78,32 @@ DiscomApp.Export.generateCadSLDPdf = function() {
 
         nodes.forEach(n => {
             const pos = mapToPdf(n.lat, n.lng);
-            if(n.type === 'GSS') { doc.setFillColor(220, 38, 38); doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); } 
-            else if(n.type === 'DT') { doc.setFillColor(249, 115, 22); doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); } 
+            // FIX: SLD GSS TEXT MISSING and DT BORDER
+            if(n.type === 'GSS') { 
+                doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.setFillColor(220, 38, 38); 
+                doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); 
+                doc.setFontSize(3.5); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.5, { align: 'center' }); 
+                doc.setFontSize(3); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS", pos.x, pos.y + 3.5, { align: 'center' });
+            } 
+            else if(n.type === 'DT') { 
+                doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); // Thin border
+                doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); 
+            } 
             else if(n.type === 'POLE') { 
-                doc.setFillColor(100, 116, 139); doc.circle(pos.x, pos.y, 0.5, 'F'); 
+                doc.setFillColor(100, 116, 139); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); doc.circle(pos.x, pos.y, 0.5, 'F'); 
                 const pNo = String(n.data.poleNo); const dts = poleDTMap[pNo] || [];
                 if(dts.length > 0) {
                     dts.forEach((dt, idx) => {
                         let offsetX = 0, offsetY = 1.0; 
                         if(dts.length > 1) { if(idx === 0) offsetX = -1.0; else if(idx === 1) offsetX = 1.0; }
-                        doc.setFillColor(249, 115, 22); doc.rect(pos.x + offsetX - 0.75, pos.y + offsetY - 0.75, 1.5, 1.5, 'FD'); 
+                        doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); // Thin border
+                        doc.rect(pos.x + offsetX - 0.75, pos.y + offsetY - 0.75, 1.5, 1.5, 'FD'); 
                         doc.setFontSize(2.0); doc.setTextColor(0,0,0); doc.text(String(dt.rating).replace(/[^0-9]/g, ''), pos.x + offsetX, pos.y + offsetY + 0.4, { align: 'center' });
                     });
                 }
             }
         });
 
-        // FIX: Proper Details Box at bottom right corner
         doc.setFillColor(255, 255, 255); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); 
         doc.rect(pageWidth - margin - 55, pageHeight - margin - 18, 53, 16, 'FD'); 
         doc.setFontSize(7); doc.setTextColor(0, 0, 0); 
@@ -109,7 +116,6 @@ DiscomApp.Export.generateCadSLDPdf = function() {
     } catch(err) { alert("PDF Error: " + err.message); }
 };
 
-// FIX: New DT Report Generation PDF Logic
 DiscomApp.Export.exportDtReportPdf = function(dtId) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     const d = (net.dts||[]).find(x => x.id === dtId); if(!d) return;
@@ -118,9 +124,7 @@ DiscomApp.Export.exportDtReportPdf = function(dtId) {
         doc.setFontSize(16); doc.text(`DT Consumer Report: ${d.code}`, 15, 20); 
         
         doc.setFontSize(10);
-        doc.text(`Rating: ${d.rating} kVA`, 15, 30);
-        doc.text(`Phase: ${d.phase || 'N/A'}`, 15, 36);
-        doc.text(`Location: ${d.location || 'N/A'}`, 15, 42);
+        doc.text(`Rating: ${d.rating} kVA`, 15, 30); doc.text(`Phase: ${d.phase || 'N/A'}`, 15, 36); doc.text(`Location: ${d.location || 'N/A'}`, 15, 42);
         
         doc.setFontSize(12); doc.text(`Connected Consumers List`, 15, 55);
         
