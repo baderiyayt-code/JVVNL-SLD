@@ -78,13 +78,14 @@ DiscomApp.Export.generateCadSLDPdf = function() {
 
         nodes.forEach(n => {
             const pos = mapToPdf(n.lat, n.lng);
-            // FIX: Perfected GSS Rendering and DT Thin Borders
+            // FIX: Proper GSS Text Inside Box and Name Below Box
             if(n.type === 'GSS') { 
-                doc.setDrawColor(0,0,0); doc.setLineWidth(0.2); doc.setFillColor(220, 38, 38); 
+                doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.setFillColor(220, 38, 38); 
                 doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); 
-                doc.setFontSize(3.0); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.8, { align: 'center' }); 
-                doc.setFontSize(2.5); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS", pos.x, pos.y + 3.5, { align: 'center' });
+                doc.setFontSize(3.5); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.5, { align: 'center', baseline: 'middle' }); 
+                doc.setFontSize(3.0); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS Name", pos.x, pos.y + 3.5, { align: 'center' });
             } 
+            // FIX: Ultra-thin border for DTs
             else if(n.type === 'DT') { 
                 doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); 
                 doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); 
