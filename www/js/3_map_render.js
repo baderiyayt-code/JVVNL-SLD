@@ -27,19 +27,13 @@ DiscomApp.Map.getDistStr = (lat, lng) => { if(!lat || !lng || isNaN(lat)) return
 DiscomApp.Map.initMapLayers = function() {
     if (typeof L === 'undefined') return; 
     
-    // STRICT CSS FIX FOR GSS RED DOT AND LT/HT LINES
     if(!document.getElementById('zoom-fix-styles')) {
         const s = document.createElement('style'); 
         s.id = 'zoom-fix-styles';
         s.innerHTML = `
-            /* Zoom <= 17: LT Line Hide */
             #map.hide-lt-lines path.lt-line-path { display: none !important; stroke-opacity: 0 !important; opacity: 0 !important; }
-            
-            /* Zoom <= 14: GSS Shrink */
             #map.shrink-gss .gss-big-icon { display: none !important; }
             #map.shrink-gss .gss-small-dot { display: block !important; }
-            
-            /* HT LINES: Always visible */
             #map path.ht-line-path, #map path.ug-line-path, #map path.ryb-line-path { display: block !important; visibility: visible !important; opacity: 1 !important; stroke-opacity: 1 !important; }
         `;
         document.head.appendChild(s);
@@ -80,17 +74,16 @@ DiscomApp.Map.initMapLayers = function() {
     layerKeys = Object.keys(tileLayers); tileLayers[layerKeys[currentTileIndex]].layer.addTo(map);
     
     DiscomApp.Map.setupFeatureGroups();
-    
-    // Map initial load hone par bhi zoom classes lag jayein
     setTimeout(() => { DiscomApp.Map.updateMapZoomClasses(); }, 200);
 };
 
 DiscomApp.Map.setupFeatureGroups = function() {
     if(!map) return;
     if(featureGroups.gss) { Object.values(featureGroups).forEach(g => { if(map.hasLayer(g)) map.removeLayer(g); }); }
-    const useCluster = DiscomApp.State.settings.markerCluster !== false && typeof L.markerClusterGroup !== 'undefined';
     
-    // FIX: HT aur LT poles ko alag groups mein rakha hai, taaki ek ko chupane par dusre ka cluster disturb na ho
+    // FIX: Only apply clustering if explicitly true
+    const useCluster = DiscomApp.State.settings.markerCluster === true && typeof L.markerClusterGroup !== 'undefined';
+    
     featureGroups = { 
         gss: L.featureGroup().addTo(map), 
         lines: L.featureGroup().addTo(map), 
@@ -102,50 +95,20 @@ DiscomApp.Map.setupFeatureGroups = function() {
     };
 };
 
-// =====================================
-// NAYA ZOOM LOGIC (PHYSICAL LAYER TOGGLING)
-// =====================================
 DiscomApp.Map.updateMapZoomClasses = function() {
     if(!map || !featureGroups.consumers) return; 
     const z = map.getZoom(); 
     const mapEl = document.getElementById('map'); 
     
-    // CSS-based zoom classes (Lines aur GSS icon ke liye)
     mapEl.classList.remove('hide-lt-lines', 'shrink-gss');
     if (z <= 17) mapEl.classList.add('hide-lt-lines'); 
     if (z <= 14) mapEl.classList.add('shrink-gss'); 
 
-    // PHYSICAL TOGGLE: Consumers & Consumer Dotted Lines (Zoom <= 19 par hide)
-    if (z <= 19) { 
-        if(map.hasLayer(featureGroups.consumers)) map.removeLayer(featureGroups.consumers); 
-        if(map.hasLayer(featureGroups.consumerLines)) map.removeLayer(featureGroups.consumerLines); 
-    } else { 
-        if(!map.hasLayer(featureGroups.consumers)) map.addLayer(featureGroups.consumers); 
-        if(!map.hasLayer(featureGroups.consumerLines)) map.addLayer(featureGroups.consumerLines); 
-    }
+    if (z <= 19) { if(map.hasLayer(featureGroups.consumers)) map.removeLayer(featureGroups.consumers); if(map.hasLayer(featureGroups.consumerLines)) map.removeLayer(featureGroups.consumerLines); } else { if(!map.hasLayer(featureGroups.consumers)) map.addLayer(featureGroups.consumers); if(!map.hasLayer(featureGroups.consumerLines)) map.addLayer(featureGroups.consumerLines); }
+    if (z <= 18) { if(map.hasLayer(featureGroups.ltPoles)) map.removeLayer(featureGroups.ltPoles); } else { if(!map.hasLayer(featureGroups.ltPoles)) map.addLayer(featureGroups.ltPoles); }
+    if (z <= 16) { if(map.hasLayer(featureGroups.htPoles)) map.removeLayer(featureGroups.htPoles); } else { if(!map.hasLayer(featureGroups.htPoles)) map.addLayer(featureGroups.htPoles); }
+    if (z <= 15) { if(map.hasLayer(featureGroups.dts)) map.removeLayer(featureGroups.dts); } else { if(!map.hasLayer(featureGroups.dts)) map.addLayer(featureGroups.dts); }
 
-    // PHYSICAL TOGGLE: LT Poles (Zoom <= 18 par hide)
-    if (z <= 18) { 
-        if(map.hasLayer(featureGroups.ltPoles)) map.removeLayer(featureGroups.ltPoles); 
-    } else { 
-        if(!map.hasLayer(featureGroups.ltPoles)) map.addLayer(featureGroups.ltPoles); 
-    }
-
-    // PHYSICAL TOGGLE: HT Poles (Zoom <= 16 par hide)
-    if (z <= 16) { 
-        if(map.hasLayer(featureGroups.htPoles)) map.removeLayer(featureGroups.htPoles); 
-    } else { 
-        if(!map.hasLayer(featureGroups.htPoles)) map.addLayer(featureGroups.htPoles); 
-    }
-
-    // PHYSICAL TOGGLE: DT (Zoom <= 15 par hide)
-    if (z <= 15) { 
-        if(map.hasLayer(featureGroups.dts)) map.removeLayer(featureGroups.dts); 
-    } else { 
-        if(!map.hasLayer(featureGroups.dts)) map.addLayer(featureGroups.dts); 
-    }
-
-    // Icon dynamic scale adjustment
     let scale = 1; if (z < 19) scale = Math.max(0.35, 1 - ((19 - z) * 0.15)); else if (z > 19) scale = Math.min(1.5, 1 + ((z - 19) * 0.2));
     document.documentElement.style.setProperty('--icon-scale', scale);
 }
@@ -247,15 +210,10 @@ DiscomApp.Map.addSingleObjectToMap = function(type, obj) {
     if (type === 'POLE' || type === 'LTPOLE') {
         const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(obj.id) : false;
         let associatedDTs = []; const net = DiscomApp.State.getActiveNetwork(); if(net && net.dts) associatedDTs = net.dts.filter(d => String(d.parentPole) === String(obj.poleNo));
-        const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(obj, associatedDTs, isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
+        const markerClass = obj.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
+        const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(obj, associatedDTs, isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
         m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', obj.id, `Pole ${obj.poleNo}`, `Type: <b>${obj.lineType || 'HT'}</b><br>Config: <b>${obj.poleType || 'Standard'}</b>`); }); 
-        
-        // FIX: Add object exactly to the correct layer group based on HT or LT
-        if (obj.lineType === 'LT') {
-            if(featureGroups.ltPoles) featureGroups.ltPoles.addLayer(m);
-        } else {
-            if(featureGroups.htPoles) featureGroups.htPoles.addLayer(m);
-        }
+        if (obj.lineType === 'LT') { if(featureGroups.ltPoles) featureGroups.ltPoles.addLayer(m); } else { if(featureGroups.htPoles) featureGroups.htPoles.addLayer(m); }
     } else if (type === 'DT') {
         const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(obj.id) : false;
         const m = L.marker([obj.lat, obj.lng], { icon: L.divIcon({ className: `dt-square-icon ${isOrphan ? 'orphan-pulse' : ''}`, html: DiscomApp.Map.getDTSVG(obj.phase, obj.rating), iconSize: [34, 40], iconAnchor: [17, 20] }), zIndexOffset: 400 });
@@ -275,12 +233,10 @@ DiscomApp.Map.renderEntireNetwork = function() {
         Object.values(DiscomApp.State.gssNodes || {}).forEach(gss => {
             if (typeof gss.lat === 'number' && !isNaN(gss.lat)) {
                 if (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === gss.code) return; 
-                
                 const gssSvg = `<div style="background:transparent; border:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%; position:relative;">
                     <svg class="gss-big-icon" viewBox="0 0 100 50" style="width:60px;height:30px; filter:drop-shadow(0px 4px 6px rgba(0,0,0,0.6));"><rect x="2" y="2" width="96" height="46" rx="6" fill="#dc2626" stroke="#ffffff" stroke-width="4"/><text x="50" y="34" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" font-family="sans-serif">GSS</text></svg>
                     <div class="gss-small-dot" style="width:16px; height:16px; background:#dc2626; border:3px solid #ffffff; border-radius:50%; box-shadow:0 2px 6px rgba(0,0,0,0.6); display:none; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);"></div>
                 </div>`;
-                
                 const m = L.marker([gss.lat, gss.lng], { icon: L.divIcon({ className: 'gss-marker', html: gssSvg, iconSize: [60,30], iconAnchor: [30,15] }), zIndexOffset: 500 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('GSS', gss.code, gss.name, `Code: <b>${gss.code}</b>`); }); featureGroups.gss.addLayer(m);
             }
@@ -291,16 +247,10 @@ DiscomApp.Map.renderEntireNetwork = function() {
             net.poles.forEach(p => {
                 if(!p || isNaN(p.lat) || isNaN(p.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === p.id)) return; 
                 const isOrphan = DiscomApp.State.orphanPoleIds ? DiscomApp.State.orphanPoleIds.has(p.id) : false;
-                
-                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'pole-marker-icon', html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
+                const markerClass = p.lineType === 'LT' ? 'lt-pole-marker' : 'ht-pole-marker';
+                const m = L.marker([p.lat, p.lng], { icon: L.divIcon({ className: `pole-marker-icon ${markerClass}`, html: DiscomApp.Map.getPoleWithDTHTML(p, poleDTMap[String(p.poleNo)] || [], isOrphan), iconSize: [50, 75], iconAnchor: [25, 16] }), zIndexOffset: 200 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('POLE', p.id, `Pole ${p.poleNo}`, `Type: <b>${p.lineType || 'HT'}</b><br>Config: <b>${p.poleType || 'Standard'}</b><br>Condition: <b>${p.condition||'Good'}</b>`); }); 
-                
-                // FIX: Physically splitting the rendering based on HT or LT
-                if (p.lineType === 'LT') {
-                    if(featureGroups.ltPoles) featureGroups.ltPoles.addLayer(m);
-                } else {
-                    if(featureGroups.htPoles) featureGroups.htPoles.addLayer(m);
-                }
+                if (p.lineType === 'LT') { if(featureGroups.ltPoles) featureGroups.ltPoles.addLayer(m); } else { if(featureGroups.htPoles) featureGroups.htPoles.addLayer(m); }
             });
         }
         if (f.dts && net.dts) {
@@ -335,8 +285,7 @@ DiscomApp.Map.renderEntireNetwork = function() {
         if (f.consumers && net.consumers) {
             net.consumers.forEach(c => {
                 if (!c || isNaN(c.lat) || isNaN(c.lng) || (DiscomApp.State.activeMove && DiscomApp.State.activeMove.id === c.id)) return; 
-                const renderLat = c.lat + (Math.random() - 0.5)*0.00003;
-                const renderLng = c.lng + (Math.random() - 0.5)*0.00003;
+                const renderLat = c.lat + (Math.random() - 0.5)*0.00003; const renderLng = c.lng + (Math.random() - 0.5)*0.00003;
                 const m = L.marker([renderLat, renderLng], { icon: L.divIcon({ className: 'consumer-marker-icon', html: DiscomApp.Map.getConsumerSVG(c.cType, c.status), iconSize: [26,26], iconAnchor: [13, 13] }), zIndexOffset: 100 });
                 m.on('click', () => { DiscomApp.UI.openObjectSheet('CONSUMER', c.id, c.name, `Type: <b>${c.cType||'Domestic'}</b><br>Status: <b>${c.status||'Regular'}</b><br>K-No: <b>${c.kno}</b><br>Load: <b>${c.load||'N/A'}</b>`); }); 
                 featureGroups.consumers.addLayer(m);
@@ -345,9 +294,7 @@ DiscomApp.Map.renderEntireNetwork = function() {
             });
         }
         
-        // Render hone ke baad classes update karo taaki layer turant sahi tareeke se hide ho
         DiscomApp.Map.updateMapZoomClasses();
-        
         let t11 = 0, tLT = 0, dt3ph = 0, dt1ph = 0; 
         (net.lines||[]).forEach(l => { if(l) { if (DiscomApp.Map.getLineSpec(l.type).name.includes('LT')) tLT += (l.distanceMeters || 0); else t11 += (l.distanceMeters || 0); } }); 
         (net.dts||[]).forEach(d => { if(d) { if(d.phase === 'Single Phase') dt1ph++; else dt3ph++; } });
