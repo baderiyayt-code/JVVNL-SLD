@@ -158,7 +158,7 @@
         </div>
     </div>
 
-    <!-- UPDATE / RELOCATE BUTTON NAMES CHANGED HERE -->
+    <!-- MAIN BOTTOM SHEET (Buttons removed, Smart Photo Thumbnail added) -->
     <div class="object-bottom-sheet" id="object-bottom-sheet">
         <div class="sheet-drag-handle" onclick="DiscomApp.UI.closeObjectSheet()"></div>
         <button onclick="DiscomApp.UI.closeObjectSheet()" style="position:absolute; top:15px; right:15px; background:var(--bg-glass); border:1px solid var(--border); width:36px; height:36px; border-radius:50%; font-size:1rem; color:var(--text-sub); cursor:pointer; z-index:10;"><i class="fa-solid fa-xmark"></i></button>
@@ -167,8 +167,9 @@
                 <h3 id="objSheetTitle" style="font-weight:900; margin-bottom:5px; padding-right:30px;">Object Title</h3>
                 <div id="objSheetDetails" style="font-size:0.85rem; color:var(--text-sub); line-height:1.5;">Details...</div>
             </div>
-            <div style="width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--bg-glass); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-left:15px; cursor:pointer;" onclick="if(document.getElementById('objPhotoImg').src) DiscomApp.UI.openFullScreenPhoto(document.getElementById('objPhotoImg').src)">
-                <i id="objPhotoPlaceholder" class="fa-solid fa-image" style="color:var(--text-sub); font-size:24px;"></i>
+            <!-- Smart Thumbnail Box -->
+            <div style="width:100px; height:100px; border-radius:12px; overflow:hidden; background:var(--bg-glass); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-left:15px; cursor:pointer;" onclick="DiscomApp.UI.handlePhotoClick()">
+                <div id="objPhotoPlaceholder" style="font-size:24px; color:var(--text-sub); display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="fa-solid fa-camera"></i><span style="font-size:0.6rem; font-weight:800; text-transform:uppercase;">Add Photo</span></div>
                 <img id="objPhotoImg" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
             </div>
         </div>
@@ -177,17 +178,24 @@
             <button class="btn-action-primary" id="btnObjMove" style="flex:1;"><i class="fa-solid fa-arrows-up-down-left-right"></i> Relocate</button>
             <button class="btn-action-primary" id="btnObjDelete" style="flex:1; background:#ef4444;"><i class="fa-solid fa-trash"></i> Delete</button>
         </div>
-        <button class="btn-action-primary" id="btnObjCapture" style="margin-top:10px; width:100%; background:#0f172a;" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Capture New Photo</button>
     </div>
 
+    <!-- FULL SCREEN PHOTO VIEWER (Added Retake and Delete Options) -->
     <div id="full-photo-viewer" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:99999999; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(10px);">
         <button onclick="DiscomApp.UI.closeFullScreenPhoto()" style="position:absolute; top:30px; right:30px; background:rgba(255,255,255,0.2); border:none; color:white; width:45px; height:45px; border-radius:50%; font-size:24px; z-index:2; display:flex; align-items:center; justify-content:center; cursor:pointer;"><i class="fa-solid fa-times"></i></button>
-        <img id="full-photo-img" src="" style="max-width:95%; max-height:90%; object-fit:contain; border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        
+        <img id="full-photo-img" src="" style="max-width:95%; max-height:75%; object-fit:contain; border-radius:12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        
+        <div id="full-photo-actions" style="display:flex; gap:15px; margin-top:20px; width:90%; max-width:400px;">
+            <button class="btn-action-primary" style="flex:1; margin:0; background:#0f172a; font-size:0.9rem;" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Retake Photo</button>
+            <button class="btn-action-primary" style="flex:1; margin:0; background:#ef4444; font-size:0.9rem;" onclick="DiscomApp.UI.deleteObjectPhoto()"><i class="fa-solid fa-trash"></i> Delete</button>
+        </div>
     </div>
 
     <div class="modal-overlay" id="formModalOverlay"><div class="modal-sheet" id="modalSheetContent"></div></div>
 
     <div id="settings-page">
+        <!-- ... (Settings Code Same As Before) ... -->
         <div class="settings-header">
             <button class="sheet-close-btn" onclick="DiscomApp.UI.closeSettingsPage()"><i class="fa-solid fa-arrow-left"></i></button>
             <h2 style="font-size:1.2rem; font-weight:800;" data-i18n="settings">Settings</h2>
@@ -211,7 +219,6 @@
 
     <div id="app-toast"><i class="fa-solid fa-circle-info"></i> <span id="toast-msg">Success!</span></div>
 
-    <!-- JS Files -->
     <script src="js/1_config.js"></script>
     <script src="js/2_db_sync.js"></script>
     <script src="js/3_map_render.js"></script>
