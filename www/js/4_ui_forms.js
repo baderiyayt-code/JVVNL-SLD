@@ -59,12 +59,19 @@ DiscomApp.UI.executeSafeSave = function(actionFn) {
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); };
 
 DiscomApp.UI.justOpenedSheet = false;
+
+// FIX: Ignoring clicks inside #full-photo-viewer so currentSelectedObj is not deleted
 document.addEventListener('click', function(e) { 
     if (DiscomApp.UI.justOpenedSheet) return;
     const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); 
     if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } 
     const sheet = document.getElementById('object-bottom-sheet');
-    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm')) { DiscomApp.UI.closeObjectSheet(); }
+    
+    // Yahan full-photo-viewer skip kiya gaya hai
+    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm') && !e.target.closest('#full-photo-viewer')) { 
+        DiscomApp.UI.closeObjectSheet(); 
+    }
+    
     const modal = document.getElementById('formModalOverlay');
     if(modal && modal.classList.contains('open') && e.target === modal) { DiscomApp.UI.closeModal(); }
 });
@@ -141,9 +148,8 @@ DiscomApp.UI.clearSearch = function() { const bar = document.getElementById('app
 DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return; DiscomApp.UI.clearSearch(); DiscomApp.UI.toggleSearchBox(); let target = null, popupHtml = ''; if(type === 'CONSUMER') { target = net.consumers.find(c => c.id === id); if(target) popupHtml = `K-No: <b>${target.kno}</b>`; } else if(type === 'DT') { target = net.dts.find(d => d.id === id); if(target) popupHtml = `Rating: <b>${target.rating} kVA</b>`; } else if(type === 'POLE') { target = net.poles.find(p => p.id === id); if(target) popupHtml = `Type: <b>${target.lineType}</b>`; } if(target && target.lat) { if(map) map.flyTo([target.lat, target.lng], 19, { duration: 1 }); setTimeout(() => DiscomApp.UI.openObjectSheet(type, id, type === 'CONSUMER' ? target.name : (type === 'DT' ? `DT: ${target.code}` : `Pole: ${target.poleNo}`), popupHtml), 1000); } };
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
-
 // ==========================================
-// NEW SMART PHOTO LOGIC IMPLEMENTATION
+// SMART PHOTO VIEWER & DELETE LOGIC
 // ==========================================
 
 DiscomApp.UI.handlePhotoClick = async function() {
@@ -160,12 +166,12 @@ DiscomApp.UI.handlePhotoClick = async function() {
 };
 
 DiscomApp.UI.deleteObjectPhotoFromViewer = function() {
-    if(!currentSelectedObj) return;
+    if(!currentSelectedObj) return alert("No active object selected!");
     if(!confirm("Are you sure you want to delete this photo?")) return;
     const id = currentSelectedObj.id;
     DiscomApp.DB.deletePhotoData(id);
     
-    // Bottom Sheet Image Update (Clear it)
+    // Clear thumbnails
     document.querySelectorAll('#objPhotoImg').forEach(imgEl => { imgEl.style.display = 'none'; imgEl.src = ''; });
     document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { placeholderEl.style.display = 'flex'; });
     
@@ -229,7 +235,7 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
             ${locStr}
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
                 <div style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; background:var(--bg-glass); border:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="DiscomApp.UI.handlePhotoClick()">
-                    <div id="objPhotoPlaceholder" style="font-size:1.4rem; color:var(--text-sub); display:flex;"><i class="fa-solid fa-camera"></i></div>
+                    <div id="objPhotoPlaceholder" style="font-size:1.4rem; color:var(--text-sub); display:flex; flex-direction:column; align-items:center; gap:5px;"><i class="fa-solid fa-camera"></i><span style="font-size:0.5rem; font-weight:800; text-transform:uppercase;">Add Photo</span></div>
                     <img id="objPhotoImg" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
                 </div>
                 <div style="flex:1; display:grid; grid-template-columns: 1fr 1fr; gap:6px; background:var(--bg-glass); padding:8px; border-radius:10px; border:1px solid var(--border);">
@@ -275,10 +281,8 @@ DiscomApp.UI.captureObjectPhoto = function() {
         document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; }); 
         document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; }); 
         
-        // Update full screen image immediately if it's already open (for Retake functionality)
         const fsImg = document.getElementById('full-photo-img');
         if(fsImg && document.getElementById('full-photo-viewer').style.display === 'flex') { fsImg.src = base64Data; }
-        
         DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); 
     };
     if (window.cordova && navigator.camera) { navigator.camera.getPicture((imgData) => { processPhoto("data:image/jpeg;base64," + imgData); }, (err) => { console.warn("Camera cancelled"); }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); } else { let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.style.display = 'none'; document.body.appendChild(input); input.onchange = e => { let file = e.target.files[0]; if(!file) { document.body.removeChild(input); return; } let reader = new FileReader(); reader.onload = ev => { processPhoto(ev.target.result); document.body.removeChild(input); }; reader.readAsDataURL(file); }; input.click(); }
@@ -337,7 +341,7 @@ DiscomApp.UI.syncLineToSelect = function() {
     if (type.includes('LT')) {
         const selectedDT = document.getElementById('inpTargetDT') ? String(document.getElementById('inpTargetDT').value) : ''; const cleanDT = selectedDT.replace('DT_', '');
         nodes = (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === cleanDT).map(p => ({id: 'POLE_' + p.poleNo, title: 'LT Pole: '+p.poleNo, lat: p.lat, lng: p.lng}));
-        if(cleanDT) { const dtObj = (net.dts||[]).find(d => String(d.code) === cleanDT); if(dtObj) nodes.push({id: 'DT_'+cleanDT, title: 'DT: '+cleanDT, lat: dtObj.lat, lng: dtObj.lng}); }
+        if(cleanDT) { const dtObj = (net.dts||[]).find(d => String(d.code) === cleanDT); if(dtObj) nodespush({id: 'DT_'+cleanDT, title: 'DT: '+cleanDT, lat: dtObj.lat, lng: dtObj.lng}); }
     } else {
         nodes = (net.poles||[]).filter(p => p.lineType !== 'LT').map(p => ({id: 'POLE_' + p.poleNo, title: 'HT Pole '+p.poleNo, lat: p.lat, lng: p.lng}));
         const parentGss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (parentGss && ('GSS_'+parentGss.code) !== fromVal) nodes.push({id: 'GSS_'+parentGss.code, title: 'GSS ('+parentGss.code+')', lat: parentGss.lat, lng: parentGss.lng});
