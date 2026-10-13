@@ -7,55 +7,29 @@ DiscomApp.UI.formatTime = function(ts) {
 };
 
 DiscomApp.UI.toggleAuthMode = function() { 
-    authMode = authMode === 'login' ? 'signup' : 'login'; 
-    document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; 
-    document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; 
-    document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; 
-    document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
+    authMode = authMode === 'login' ? 'signup' : 'login'; document.getElementById('loginBtn').style.display = authMode === 'login' ? 'inline-block' : 'none'; document.getElementById('signupBtn').style.display = authMode === 'signup' ? 'inline-block' : 'none'; document.getElementById('authName').style.display = authMode === 'signup' ? 'block' : 'none'; document.getElementById('authToggleText').innerText = authMode === 'login' ? "Need an account? Sign Up" : "Already have an account? Login"; 
 };
 
 DiscomApp.UI.applyAuthUIVisuals = function() { 
-    document.getElementById('auth-screen').style.display = 'none'; 
-    document.getElementById('app-container').style.display = 'flex'; 
-    setTimeout(() => { if(map) map.invalidateSize(); }, 100); 
-    const uName = document.getElementById('userNameDisplay');
-    if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
+    document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-container').style.display = 'flex'; setTimeout(() => { if(map) map.invalidateSize(); }, 100); const uName = document.getElementById('userNameDisplay'); if(uName) uName.innerText = DiscomApp.State.user.name || 'Admin User'; 
 };
 
 DiscomApp.UI.updateFeederDropdown = function() { 
-    const header = document.getElementById('activeFeederLabel'); if(!header) return; 
-    const keys = Object.keys(DiscomApp.State.feeders || {}); 
+    const header = document.getElementById('activeFeederLabel'); if(!header) return; const keys = Object.keys(DiscomApp.State.feeders || {}); 
     if(keys.length === 0) { header.innerText = 'No Feeder'; DiscomApp.State.currentFeederCode = null; } 
-    else { 
-        if(!DiscomApp.State.currentFeederCode || !DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]) DiscomApp.State.currentFeederCode = keys[0]; 
-        const currentFeeder = DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]; 
-        header.innerText = (currentFeeder && currentFeeder.feeder && currentFeeder.feeder.name) ? currentFeeder.feeder.name : 'Unnamed Feeder'; 
-    } 
+    else { if(!DiscomApp.State.currentFeederCode || !DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]) DiscomApp.State.currentFeederCode = keys[0]; const currentFeeder = DiscomApp.State.feeders[DiscomApp.State.currentFeederCode]; header.innerText = (currentFeeder && currentFeeder.feeder && currentFeeder.feeder.name) ? currentFeeder.feeder.name : 'Unnamed Feeder'; } 
 };
 
 DiscomApp.UI.checkOnboardingFlow = function() {
     if(isSetupModalOpen) return;
-    if(Object.keys(DiscomApp.State.gssNodes || {}).length === 0) { 
-        document.getElementById('onboarding-overlay').style.display = 'flex'; 
-        document.getElementById('onboarding-title').innerText = "Network Setup Required"; 
-        document.getElementById('onboarding-desc').innerText = "Please add your first GSS to begin mapping."; 
-        document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openAddGssModal(); }; 
-    } 
-    else if (Object.keys(DiscomApp.State.feeders || {}).length === 0) { 
-        document.getElementById('onboarding-overlay').style.display = 'flex'; 
-        document.getElementById('onboarding-title').innerText = "Create Feeder"; 
-        document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; 
-        document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openFeederConfigModal(); }; 
-    } 
+    if(Object.keys(DiscomApp.State.gssNodes || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Network Setup Required"; document.getElementById('onboarding-desc').innerText = "Please add your first GSS to begin mapping."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openAddGssModal(); }; } 
+    else if (Object.keys(DiscomApp.State.feeders || {}).length === 0) { document.getElementById('onboarding-overlay').style.display = 'flex'; document.getElementById('onboarding-title').innerText = "Create Feeder"; document.getElementById('onboarding-desc').innerText = "You must create a Feeder linked to your GSS to continue."; document.getElementById('onboarding-btn').onclick = function() { document.getElementById('onboarding-overlay').style.display = 'none'; isSetupModalOpen = true; DiscomApp.UI.openFeederConfigModal(); }; } 
     else { document.getElementById('onboarding-overlay').style.display = 'none'; }
 };
 
 DiscomApp.UI.applyTranslations = function() {
     const lang = DiscomApp.State.settings.language || 'en';
-    document.querySelectorAll('[data-i18n]').forEach(el => { 
-        const key = el.getAttribute('data-i18n'); 
-        if(i18n[lang] && i18n[lang][key]) { if(el.tagName === 'INPUT' && el.type === 'text') el.placeholder = i18n[lang][key]; else el.innerHTML = i18n[lang][key]; } 
-    });
+    document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); if(i18n[lang] && i18n[lang][key]) { if(el.tagName === 'INPUT' && el.type === 'text') el.placeholder = i18n[lang][key]; else el.innerHTML = i18n[lang][key]; } });
     const t = i18n[lang];
     if(document.getElementById('kpi11Label')) document.getElementById('kpi11Label').innerText = t.kpi11; if(document.getElementById('kpiLTLabel')) document.getElementById('kpiLTLabel').innerText = t.kpiLT;
     if(document.getElementById('kpi3PhLabel')) document.getElementById('kpi3PhLabel').innerText = t.kpi3Ph; if(document.getElementById('kpi1PhLabel')) document.getElementById('kpi1PhLabel').innerText = t.kpi1Ph;
@@ -84,20 +58,14 @@ DiscomApp.UI.executeSafeSave = function(actionFn) {
 
 DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); if (!dial || !fab) return; const isOpen = !dial.classList.contains('active'); dial.classList.toggle('active', isOpen); fab.classList.toggle('open', isOpen); };
 
-// FIX: Added 'justOpenedSheet' lock to prevent Map click from immediately closing the Line sheet
 DiscomApp.UI.justOpenedSheet = false;
 
 document.addEventListener('click', function(e) { 
     if (DiscomApp.UI.justOpenedSheet) return;
-    
     const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); 
     if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } 
-    
     const sheet = document.getElementById('object-bottom-sheet');
-    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm')) { 
-        DiscomApp.UI.closeObjectSheet(); 
-    }
-    
+    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm')) { DiscomApp.UI.closeObjectSheet(); }
     const modal = document.getElementById('formModalOverlay');
     if(modal && modal.classList.contains('open') && e.target === modal) { DiscomApp.UI.closeModal(); }
 });
@@ -148,51 +116,73 @@ window.toggleKPIBar = function() {
 window.toggleAppMode = function() {
     DiscomApp.State.appMode = DiscomApp.State.appMode === 'edit' ? 'inspect' : 'edit';
     const btn = document.getElementById('modeToggleBtn');
-    if(btn) {
-        btn.innerHTML = DiscomApp.State.appMode === 'edit' ? '<i class="fa-solid fa-pen-ruler"></i>' : '<i class="fa-solid fa-eye"></i>';
-        btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981';
-    }
-    
+    if(btn) { btn.innerHTML = DiscomApp.State.appMode === 'edit' ? '<i class="fa-solid fa-pen-ruler"></i>' : '<i class="fa-solid fa-eye"></i>'; btn.style.color = DiscomApp.State.appMode === 'edit' ? 'var(--text-main)' : '#10b981'; }
     const fabContainer = document.getElementById('bottom-single-action');
     if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none';
-    
     if(DiscomApp.State.appMode === 'inspect') {
-        const dial = document.getElementById('speed-dial-menu');
-        const mainFab = document.getElementById('mainFabBtn');
-        if (dial) dial.classList.remove('active');
-        if (mainFab) mainFab.classList.remove('open');
+        const dial = document.getElementById('speed-dial-menu'); const mainFab = document.getElementById('mainFabBtn');
+        if (dial) dial.classList.remove('active'); if (mainFab) mainFab.classList.remove('open');
         if(DiscomApp.State.placementType) DiscomApp.UI.cancelPlacement();
     }
     DiscomApp.UI.showToast(`Mode switched to: ${DiscomApp.State.appMode.toUpperCase()}`);
 };
 
-DiscomApp.UI.toggleSearchBox = function() { let box = document.getElementById('searchBoxOverlay'); if(!box) { box = document.createElement('div'); box.id = 'searchBoxOverlay'; box.style.cssText = 'position:absolute; top:65px; left:12px; right:12px; z-index:9000; background:var(--bg-glass); backdrop-filter:blur(10px); padding:10px; border-radius:12px; box-shadow:var(--shadow-md); display:flex; flex-direction:column; gap:10px; border:1px solid var(--border);'; box.innerHTML = `<div style="display:flex; gap:10px; align-items:center;"><input type="text" id="appSearchBar" class="search-input-full" placeholder="Search Consumer, DT, Pole..." onkeyup="DiscomApp.UI.handleSearch(event)"><button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-times"></i></button></div><div id="searchSuggestions" class="suggestions-panel" style="position:relative; box-shadow:none; border:none; top:0;"></div>`; document.getElementById('app-container').appendChild(box); } else { box.style.display = box.style.display === 'none' ? 'flex' : 'none'; if(box.style.display === 'none') DiscomApp.UI.clearSearch(); } if(box.style.display === 'flex') { document.getElementById('appSearchBar').focus(); } };
-DiscomApp.UI.handleSearch = function(e) { const query = e.target.value.toLowerCase().trim(), suggPanel = document.getElementById('searchSuggestions'); if(query.length === 0) { suggPanel.classList.remove('active'); return; } const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let results = []; (net.consumers||[]).forEach(c => { if (String(c.kno).toLowerCase().includes(query) || (c.name && c.name.toLowerCase().includes(query))) results.push({ type: 'CONSUMER', id: c.id, title: c.name, desc: `K-No: ${c.kno} | Connected to: ${c.parentRef}` }); }); (net.dts||[]).forEach(d => { if (String(d.code).toLowerCase().includes(query) || String(d.rating).includes(query)) results.push({ type: 'DT', id: d.id, title: `DT Code: ${d.code}`, desc: `Rating: ${d.rating} kVA` }); }); (net.poles||[]).forEach(p => { if (String(p.poleNo).toLowerCase().includes(query)) results.push({ type: 'POLE', id: p.id, title: `Pole: ${p.poleNo}`, desc: `Type: ${p.lineType}` }); }); if (results.length > 0) { suggPanel.innerHTML = results.slice(0, 15).map(r => `<div class="suggestion-item" onclick="DiscomApp.UI.selectSearchResult('${r.type}', '${r.id}')"><div class="sugg-title"><span style="color:var(--accent); font-weight:800;">${r.title}</span></div><div class="sugg-desc" style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">${r.desc}</div></div>`).join(''); suggPanel.classList.add('active'); } else { suggPanel.innerHTML = `<div style="padding:10px 12px; font-size:0.8rem; color:#64748b;">No results found</div>`; suggPanel.classList.add('active'); } };
+DiscomApp.UI.toggleSearchBox = function() { let box = document.getElementById('searchBoxOverlay'); if(!box) { box = document.createElement('div'); box.id = 'searchBoxOverlay'; box.style.cssText = 'position:absolute; top:65px; left:12px; right:12px; z-index:9000; background:var(--bg-glass); backdrop-filter:blur(10px); padding:10px; border-radius:12px; box-shadow:var(--shadow-md); display:flex; flex-direction:column; gap:10px; border:1px solid var(--border);'; box.innerHTML = `<div style="display:flex; gap:10px; align-items:center;"><input type="text" id="appSearchBar" class="search-input-full" placeholder="Search DT Name/Code, Pole, Consumer..." onkeyup="DiscomApp.UI.handleSearch(event)"><button class="action-btn-sm" onclick="DiscomApp.UI.toggleSearchBox()"><i class="fa-solid fa-times"></i></button></div><div id="searchSuggestions" class="suggestions-panel" style="position:relative; box-shadow:none; border:none; top:0;"></div>`; document.getElementById('app-container').appendChild(box); } else { box.style.display = box.style.display === 'none' ? 'flex' : 'none'; if(box.style.display === 'none') DiscomApp.UI.clearSearch(); } if(box.style.display === 'flex') { document.getElementById('appSearchBar').focus(); } };
+
+// FIX: Enhanced Search to include DT Name and Location
+DiscomApp.UI.handleSearch = function(e) { 
+    const query = e.target.value.toLowerCase().trim(), suggPanel = document.getElementById('searchSuggestions'); 
+    if(query.length === 0) { suggPanel.classList.remove('active'); return; } 
+    const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let results = []; 
+    (net.consumers||[]).forEach(c => { if (String(c.kno).toLowerCase().includes(query) || (c.name && c.name.toLowerCase().includes(query)) || (c.meterNo && c.meterNo.toLowerCase().includes(query))) results.push({ type: 'CONSUMER', id: c.id, title: c.name, desc: `K-No: ${c.kno} | Connected to: ${c.parentRef}` }); }); 
+    (net.dts||[]).forEach(d => { if (String(d.code).toLowerCase().includes(query) || String(d.rating).includes(query) || (d.location && d.location.toLowerCase().includes(query))) results.push({ type: 'DT', id: d.id, title: `DT Code: ${d.code}`, desc: `Loc: ${d.location || 'N/A'} | Rating: ${d.rating} kVA` }); }); 
+    (net.poles||[]).forEach(p => { if (String(p.poleNo).toLowerCase().includes(query)) results.push({ type: 'POLE', id: p.id, title: `Pole: ${p.poleNo}`, desc: `Type: ${p.lineType}` }); }); 
+    if (results.length > 0) { suggPanel.innerHTML = results.slice(0, 15).map(r => `<div class="suggestion-item" onclick="DiscomApp.UI.selectSearchResult('${r.type}', '${r.id}')"><div class="sugg-title"><span style="color:var(--accent); font-weight:800;">${r.title}</span></div><div class="sugg-desc" style="font-size:0.75rem; color:var(--text-sub); margin-top:2px;">${r.desc}</div></div>`).join(''); suggPanel.classList.add('active'); } else { suggPanel.innerHTML = `<div style="padding:10px 12px; font-size:0.8rem; color:#64748b;">No results found</div>`; suggPanel.classList.add('active'); } 
+};
 DiscomApp.UI.clearSearch = function() { const bar = document.getElementById('appSearchBar'); if(bar) bar.value = ''; const sugg = document.getElementById('searchSuggestions'); if(sugg) sugg.classList.remove('active'); };
 DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return; DiscomApp.UI.clearSearch(); DiscomApp.UI.toggleSearchBox(); let target = null, popupHtml = ''; if(type === 'CONSUMER') { target = net.consumers.find(c => c.id === id); if(target) popupHtml = `K-No: <b>${target.kno}</b>`; } else if(type === 'DT') { target = net.dts.find(d => d.id === id); if(target) popupHtml = `Rating: <b>${target.rating} kVA</b>`; } else if(type === 'POLE') { target = net.poles.find(p => p.id === id); if(target) popupHtml = `Type: <b>${target.lineType}</b>`; } if(target && target.lat) { if(map) map.flyTo([target.lat, target.lng], 19, { duration: 1 }); setTimeout(() => DiscomApp.UI.openObjectSheet(type, id, type === 'CONSUMER' ? target.name : (type === 'DT' ? `DT: ${target.code}` : `Pole: ${target.poleNo}`), popupHtml), 1000); } };
+
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
+// FIX: Delete photo button added to review sheets
+DiscomApp.UI.deleteObjectPhoto = function(id) {
+    if(!confirm("Are you sure you want to delete this photo?")) return;
+    DiscomApp.DB.deletePhotoData(id);
+    document.querySelectorAll('#objPhotoImg').forEach(imgEl => { imgEl.style.display = 'none'; imgEl.src = ''; });
+    document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { placeholderEl.style.display = 'flex'; });
+    const dBtn = document.getElementById('btnObjDelPhoto'); if(dBtn) dBtn.style.display = 'none';
+    DiscomApp.UI.showToast("Photo Deleted!");
+};
+
 DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml, updatedAt = null) {
-    DiscomApp.UI.justOpenedSheet = true;
-    setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
-    
+    DiscomApp.UI.justOpenedSheet = true; setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
     currentSelectedObj = { type, id }; 
     document.getElementById('objSheetTitle').innerText = title; 
     let timeStr = `<div style="margin-top:8px; font-size:0.75rem; color:var(--text-sub);"><i class="fa-regular fa-clock"></i> Last Updated: ${DiscomApp.UI.formatTime(updatedAt || Date.now())}</div>`;
     document.getElementById('objSheetDetails').innerHTML = detailsHtml + timeStr;
     
+    const isEdit = DiscomApp.State.appMode === 'edit';
     const applyPhoto = (url) => { 
         document.querySelectorAll('#objPhotoImg').forEach(imgEl => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; } else { imgEl.style.display = 'none'; imgEl.src = ''; } });
         document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { if(url) { placeholderEl.style.display = 'none'; } else { placeholderEl.style.display = 'flex'; } });
+        const dBtn = document.getElementById('btnObjDelPhoto'); if(dBtn) dBtn.style.display = (isEdit && url) ? 'block' : 'none';
     };
     const photoUrlPromise = DiscomApp.DB.getPhotoUrl(id); if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else applyPhoto(photoUrlPromise);
     document.getElementById('object-bottom-sheet').classList.add('open'); 
     
-    const isEdit = DiscomApp.State.appMode === 'edit';
     document.getElementById('btnObjEdit').style.display = isEdit ? 'block' : 'none';
     document.getElementById('btnObjDelete').style.display = (isEdit && type !== 'GSS') ? 'block' : 'none'; 
     document.getElementById('btnObjMove').style.display = (isEdit && type !== 'DT' && type !== 'LINE') ? 'block' : 'none';
     const camBtn = document.getElementById('btnObjCapture'); if(camBtn) camBtn.style.display = isEdit ? 'block' : 'none';
+    
+    // Create or show delete photo button
+    let delBtn = document.getElementById('btnObjDelPhoto');
+    if(!delBtn) {
+        delBtn = document.createElement('button'); delBtn.id = 'btnObjDelPhoto'; delBtn.className = 'btn-action-primary'; delBtn.style.cssText = 'margin-top:10px; width:100%; background:#ef4444; color:#fff; display:none;';
+        delBtn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete Photo';
+        document.getElementById('object-bottom-sheet').appendChild(delBtn);
+    }
+    delBtn.onclick = () => DiscomApp.UI.deleteObjectPhoto(id);
 
     document.getElementById('btnObjEdit').onclick = () => DiscomApp.UI.openEditModal(type.toLowerCase(), id);
     document.getElementById('btnObjMove').onclick = () => DiscomApp.CRUD.startObjectMove(type, id, title); 
@@ -202,15 +192,11 @@ DiscomApp.UI.openObjectSheet = function(type, id, title, detailsHtml, updatedAt 
 DiscomApp.UI.openDTFromSVG = function(e, id) {
     if(e) e.stopPropagation(); const net = DiscomApp.State.getActiveNetwork(); if(!net) return;
     const d = (net.dts||[]).find(x => x.id === id); if(!d) return; currentSelectedObj = { type: 'DT', id: d.id };
-    
-    DiscomApp.UI.justOpenedSheet = true;
-    setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
-
+    DiscomApp.UI.justOpenedSheet = true; setTimeout(() => DiscomApp.UI.justOpenedSheet = false, 300);
     const connectedConsumers = [];
     (net.consumers||[]).forEach(c => { let isConnected = false; if(String(c.parentRef) === String(d.code) || String(c.parentRef) === String('DT_' + d.code)) isConnected = true; else { const pole = (net.poles||[]).find(p => String(p.poleNo) === String(c.parentRef) || String(p.id) === String('POLE_' + c.parentRef)); if(pole && String(pole.dtCode) === String(d.code)) isConnected = true; } if(isConnected) connectedConsumers.push(c); });
     let totalLoadKW = 0; connectedConsumers.forEach(c => { const numMatch = String(c.load || '0').match(/[\d.]+/); if(numMatch) totalLoadKW += parseFloat(numMatch[0]) || 0; });
     let tableRowsHtml = connectedConsumers.length === 0 ? `<tr><td colspan="5" style="text-align:center; padding:12px; color:var(--text-sub); font-size:0.8rem;">No consumers connected.</td></tr>` : connectedConsumers.map((c, index) => `<tr style="border-bottom: 1px solid var(--border);"><td style="padding:6px 8px; font-size:0.75rem; text-align:center;">${index + 1}</td><td style="padding:6px 8px; font-size:0.75rem; font-weight:700;">${c.kno || 'N/A'}</td><td style="padding:6px 8px; font-size:0.75rem;">${c.name || 'Unknown'}</td><td style="padding:6px 8px; font-size:0.75rem;">${c.cType || 'Domestic'}</td><td style="padding:6px 8px; font-size:0.75rem; text-align:right;">${c.load || '1 kW'}</td></tr>`).join('');
-    
     const isEdit = DiscomApp.State.appMode === 'edit';
     
     DiscomApp.UI.openModal(`
@@ -237,29 +223,69 @@ DiscomApp.UI.openDTFromSVG = function(e, id) {
                 <button class="btn-action-primary" style="margin:0; background:#ef4444; font-size:0.8rem; padding:10px; display:${isEdit ? 'block':'none'};" onclick="if(confirm('Delete DT ${d.code}?')) { DiscomApp.CRUD.deleteEntity('dt', '${d.id}'); DiscomApp.UI.closeModal(); }"><i class="fa-solid fa-trash"></i> Delete DT</button>
                 <button class="btn-action-primary" style="margin:0; background:#0f172a; color:#fff; font-size:0.8rem; padding:10px; display:${isEdit ? 'block':'none'};" onclick="DiscomApp.UI.captureObjectPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button>
             </div>
+            <button class="btn-action-primary" id="btnDtDelPhoto" style="margin-top:10px; width:100%; background:#ef4444; color:#fff; display:none;" onclick="DiscomApp.UI.deleteObjectPhoto('${d.id}')"><i class="fa-solid fa-trash"></i> Delete Photo</button>
         </div>
     `);
     
     const applyPhoto = (url) => { 
         document.querySelectorAll('#objPhotoImg').forEach(imgEl => { if(url) { imgEl.src = url; imgEl.style.display = 'block'; } else { imgEl.style.display = 'none'; imgEl.src = ''; } });
         document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { if(url) { placeholderEl.style.display = 'none'; } else { placeholderEl.style.display = 'flex'; } });
+        const dBtn = document.getElementById('btnDtDelPhoto'); if(dBtn) dBtn.style.display = (isEdit && url) ? 'block' : 'none';
     };
     const photoUrlPromise = DiscomApp.DB.getPhotoUrl(d.id); if(photoUrlPromise instanceof Promise) { applyPhoto(null); photoUrlPromise.then(applyPhoto); } else { applyPhoto(photoUrlPromise); }
 };
 
+// FIX: New Retake / Delete feature inside forms for Photos
+DiscomApp.UI.getCameraFormHtml = () => `
+<div style="margin-top:20px; margin-bottom:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;">
+    <div style="position:relative; width:160px; height:160px; margin:0 auto 15px auto; display:none;" id="photoPreviewContainer">
+        <img id="formTempPhoto" src="" onclick="DiscomApp.UI.openFullScreenPhoto(this.src)" style="width:100%; height:100%; object-fit:cover; border-radius:12px; border:2px solid var(--accent); box-shadow:0 4px 8px rgba(0,0,0,0.15); cursor:pointer;">
+        <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:5px;">
+            <button type="button" onclick="DiscomApp.UI.captureTempPhoto()" style="background:#3b82f6; color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i class="fa-solid fa-rotate"></i></button>
+            <button type="button" onclick="DiscomApp.UI.clearTempPhoto()" style="background:#ef4444; color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    </div>
+    <button type="button" id="btnCaptureInit" class="btn-action-primary" style="padding:12px 24px; background:#0f172a; margin:0; border-radius:8px; width:100%;" onclick="DiscomApp.UI.captureTempPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button>
+</div>`;
+
+DiscomApp.UI.clearTempPhoto = function() {
+    tempPhotoUrl = null;
+    document.getElementById('photoPreviewContainer').style.display = 'none';
+    document.getElementById('btnCaptureInit').style.display = 'block';
+};
+
 DiscomApp.UI.captureTempPhoto = function() {
-    const processPhoto = (base64Data) => { tempPhotoUrl = base64Data; document.querySelectorAll('#formTempPhoto').forEach(imgEl => { imgEl.src = tempPhotoUrl; imgEl.style.display = 'block'; }); };
+    const processPhoto = (base64Data) => { 
+        tempPhotoUrl = base64Data; 
+        document.querySelectorAll('#formTempPhoto').forEach(imgEl => { imgEl.src = tempPhotoUrl; });
+        document.getElementById('photoPreviewContainer').style.display = 'block';
+        document.getElementById('btnCaptureInit').style.display = 'none';
+    };
     if (window.cordova && navigator.camera) { navigator.camera.getPicture((imgData) => { processPhoto("data:image/jpeg;base64," + imgData); }, (err) => { console.warn("Camera cancelled"); }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); } else { let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.style.display = 'none'; document.body.appendChild(input); input.onchange = e => { let file = e.target.files[0]; if(!file) { document.body.removeChild(input); return; } let reader = new FileReader(); reader.onload = ev => { processPhoto(ev.target.result); document.body.removeChild(input); }; reader.readAsDataURL(file); }; input.click(); }
 };
 
 DiscomApp.UI.captureObjectPhoto = function() {
     if(!currentSelectedObj) return alert("Error: Object not selected!"); const id = currentSelectedObj.id;
-    const processPhoto = (base64Data) => { if(DiscomApp.DB.savePhotoData) DiscomApp.DB.savePhotoData(id, base64Data); document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; }); document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; }); DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); };
+    const processPhoto = (base64Data) => { if(DiscomApp.DB.savePhotoData) DiscomApp.DB.savePhotoData(id, base64Data); document.querySelectorAll('#objPhotoImg').forEach(el => { el.src = base64Data; el.style.display = 'block'; }); document.querySelectorAll('#objPhotoPlaceholder').forEach(el => { el.style.display = 'none'; }); const db = document.getElementById('btnObjDelPhoto'); if(db) db.style.display='block'; const dtdb = document.getElementById('btnDtDelPhoto'); if(dtdb) dtdb.style.display='block'; DiscomApp.UI.showToast("📸 Photo Saved to Local Database!"); };
     if (window.cordova && navigator.camera) { navigator.camera.getPicture((imgData) => { processPhoto("data:image/jpeg;base64," + imgData); }, (err) => { console.warn("Camera cancelled"); }, { quality: 40, destinationType: 0, targetWidth: 800, targetHeight: 800, correctOrientation: true }); } else { let input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment'; input.style.display = 'none'; document.body.appendChild(input); input.onchange = e => { let file = e.target.files[0]; if(!file) { document.body.removeChild(input); return; } let reader = new FileReader(); reader.onload = ev => { processPhoto(ev.target.result); document.body.removeChild(input); }; reader.readAsDataURL(file); }; input.click(); }
 };
 
 DiscomApp.UI.openFullScreenPhoto = function(src) { if(!src || src === '' || src === window.location.href) return; const viewer = document.getElementById('full-photo-viewer'), img = document.getElementById('full-photo-img'); if(viewer && img) { img.src = src; viewer.style.display = 'flex'; } };
 DiscomApp.UI.closeFullScreenPhoto = function() { const viewer = document.getElementById('full-photo-viewer'); if(viewer) viewer.style.display = 'none'; };
+
+// FIX: Helper to filter select options
+DiscomApp.UI.filterSelect = function(inputId, selectId) {
+    const filter = document.getElementById(inputId).value.toLowerCase();
+    const select = document.getElementById(selectId);
+    const options = select.getElementsByTagName('option');
+    let firstVisible = null;
+    for (let i = 0; i < options.length; i++) {
+        const txt = options[i].text.toLowerCase();
+        if (txt.includes(filter)) { options[i].style.display = ''; if(!firstVisible) firstVisible = options[i].value; } 
+        else { options[i].style.display = 'none'; }
+    }
+    if(firstVisible) select.value = firstVisible;
+};
 
 DiscomApp.UI.togglePccConfig = function(id = 'inpMainPoleType', targetId = 'pccConfigDiv') { const pType = document.getElementById(id)?.value; const configDiv = document.getElementById(targetId); if(configDiv) configDiv.style.display = pType === 'PCC' ? 'block' : 'none'; };
 DiscomApp.UI.toggleLineConductor = function(id = 'inpLineType', targetId = 'inpConductor') { const lType = document.getElementById(id)?.value; const sel = document.getElementById(targetId); if(!sel) return; if(lType === '11 KV LINE') { sel.innerHTML = `<option value="Weasel">Weasel</option><option value="Rabbit">Rabbit</option><option value="Dog">Dog</option><option value="Underground Cable">Underground Cable</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'block'; } else { sel.innerHTML = `<option value="Single Phase">Single Phase</option><option value="Three Phase">Three Phase</option>`; if(document.getElementById('linePhaseRow')) document.getElementById('linePhaseRow').style.display = 'none'; } };
@@ -304,8 +330,6 @@ DiscomApp.UI.filterConsumerPoles = function() {
     nodes = DiscomApp.Map.sortByDistance(nodes, centerLat, centerLng); document.getElementById('inpConsParent').innerHTML = nodes.map(n => `<option value="${n.id}">${n.title} (${DiscomApp.Map.getDistStr(n.lat, n.lng)})</option>`).join('');
 };
 
-DiscomApp.UI.getCameraFormHtml = () => `<div style="margin-top:20px; margin-bottom:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;"><img id="formTempPhoto" src="" onclick="DiscomApp.UI.openFullScreenPhoto(this.src)" style="width:160px; height:160px; object-fit:cover; border-radius:12px; display:none; margin-bottom:15px; border:2px solid var(--accent); box-shadow:0 4px 8px rgba(0,0,0,0.15); cursor:pointer;"><button type="button" class="btn-action-primary" style="padding:12px 24px; background:#0f172a; margin:0; border-radius:8px; width:100%;" onclick="DiscomApp.UI.captureTempPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button></div>`;
-
 DiscomApp.UI.openAddForm = function(type) { 
     DiscomApp.UI.toggleSpeedDial(false); 
     if (type === 'POLE' || type === 'LTPOLE' || type === 'CONSUMER') { 
@@ -319,25 +343,28 @@ DiscomApp.UI.openAddForm = function(type) {
 DiscomApp.UI.confirmPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; const fabContainer = document.getElementById('bottom-single-action'); if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none'; const center = map.getCenter(); DiscomApp.UI.showFormModal(DiscomApp.State.placementType, parseFloat(center.lat.toFixed(6)), parseFloat(center.lng.toFixed(6))); }
 DiscomApp.UI.cancelPlacement = function(e) { if(e){e.preventDefault(); e.stopPropagation();} document.getElementById('center-placement-pin').style.display = 'none'; const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; const confirmBar = document.getElementById('placement-confirm-bar'); if(confirmBar) confirmBar.style.display = 'none'; const fabContainer = document.getElementById('bottom-single-action'); if(fabContainer) fabContainer.style.display = DiscomApp.State.appMode === 'edit' ? 'block' : 'none'; }
 
+// FIX: Added Location (Lat/Long) info and DT Search filtering inside Forms
 DiscomApp.UI.showFormModal = function(type, snapLat, snapLng) {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return; let center = { lat: 26.91, lng: 75.78 }; if(map) center = map.getCenter(); snapLat = snapLat || parseFloat(center.lat.toFixed(6)); snapLng = snapLng || parseFloat(center.lng.toFixed(6)); tempPhotoUrl = null;
+    const locHtml = `<div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" value="${snapLat}" disabled><label>Latitude</label></div><div class="form-row"><input type="text" class="form-input" value="${snapLng}" disabled><label>Longitude</label></div></div>`;
+    
     if (type === 'POLE' || type === 'LTPOLE') {
         const isHT = type === 'POLE'; let dtSelectHtml = ''; let nextNo = '';
         if(isHT) { let maxHtNo = 0; (net.poles||[]).filter(p => p.lineType !== 'LT').forEach(p => { const num = parseInt(p.poleNo); if(!isNaN(num) && num > maxHtNo) maxHtNo = num; }); nextNo = maxHtNo + 1; } 
-        else { if ((net.dts||[]).length === 0) return alert("Add a DT first!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); dtSelectHtml = `<div class="form-row"><select id="inpLTPoleDT" class="form-select">${sortedDTs.map(d => `<option value="${d.id}">DT: ${d.id.replace('DT_','')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('')}</select><label>Associated DT*</label></div>`; }
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add ${isHT?'HT':'LT'} Pole</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div>${dtSelectHtml}${isHT ? `<div class="form-row"><input type="number" id="inpPoleNo" class="form-input" placeholder=" " value="${nextNo}"><label>Pole Number*</label></div>` : ''}<div class="form-grid-2"><div class="form-row"><select id="inpMainPoleType" class="form-select" onchange="DiscomApp.UI.togglePccConfig('inpMainPoleType', 'pccConfigDiv')"><option value="PCC" selected>PCC</option><option value="TOWER">TOWER</option><option value="RAIL POLE">RAIL POLE</option></select><label>Pole Type*</label></div><div class="form-row"><select id="inpPoleCondition" class="form-select"><option value="Good" selected>Good</option><option value="Tilted">Tilted</option><option value="Damaged">Damaged</option></select><label>Condition</label></div></div><div class="form-row" id="pccConfigDiv" style="display:block;"><select id="inpPccConfig" class="form-select"><option value="Single Pole" selected>Single Pole</option><option value="Double Pole">Double Pole</option></select><label>PCC Configuration</label></div><input type="hidden" id="inpPoleCategory" value="${isHT?'HT':'LT'}"><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => ${isHT?'DiscomApp.CRUD.saveNewPole()':'DiscomApp.CRUD.saveNewLTPole()'})">Save Pole</button>`);
+        else { if ((net.dts||[]).length === 0) return alert("Add a DT first!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: d.code, name: d.location||'', lat: d.lat, lng: d.lng})), snapLat, snapLng); dtSelectHtml = `<div class="form-row"><input type="text" id="filterLTPoleDT" class="form-input" style="padding:8px; margin-bottom:8px; min-height:40px; font-size:0.9rem;" placeholder="🔍 Search DT Code/Name..." onkeyup="DiscomApp.UI.filterSelect('filterLTPoleDT', 'inpLTPoleDT')"><select id="inpLTPoleDT" class="form-select">${sortedDTs.map(d => `<option value="${d.id}">DT: ${d.id.replace('DT_','')} - ${d.name} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('')}</select><label>Associated DT*</label></div>`; }
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add ${isHT?'HT':'LT'} Pole</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div>${dtSelectHtml}${isHT ? `<div class="form-row"><input type="number" id="inpPoleNo" class="form-input" placeholder=" " value="${nextNo}"><label>Pole Number*</label></div>` : ''}<div class="form-grid-2"><div class="form-row"><select id="inpMainPoleType" class="form-select" onchange="DiscomApp.UI.togglePccConfig('inpMainPoleType', 'pccConfigDiv')"><option value="PCC" selected>PCC</option><option value="TOWER">TOWER</option><option value="RAIL POLE">RAIL POLE</option></select><label>Pole Type*</label></div><div class="form-row"><select id="inpPoleCondition" class="form-select"><option value="Good" selected>Good</option><option value="Tilted">Tilted</option><option value="Damaged">Damaged</option></select><label>Condition</label></div></div><div class="form-row" id="pccConfigDiv" style="display:block;"><select id="inpPccConfig" class="form-select"><option value="Single Pole" selected>Single Pole</option><option value="Double Pole">Double Pole</option></select><label>PCC Configuration</label></div>${locHtml}<input type="hidden" id="inpPoleCategory" value="${isHT?'HT':'LT'}"><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => ${isHT?'DiscomApp.CRUD.saveNewPole()':'DiscomApp.CRUD.saveNewLTPole()'})">Save Pole</button>`);
     } else if (type === 'LINE') {
         if ((net.poles||[]).length === 0) return alert("Add at least one pole first!");
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpLineType" class="form-select" onchange="DiscomApp.UI.filterLineNodes(); DiscomApp.UI.toggleLineConductor('inpLineType', 'inpConductor');"><option value="11 KV LINE" selected>11 KV (HT)</option><option value="LT LINE">LT Line</option></select><label>Voltage Type*</label></div><div class="form-row" id="linePhaseRow"><select id="inpLinePhase" class="form-select"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase Type (HT)*</label></div></div><div class="form-row"><select id="inpConductor" class="form-select"></select><label>Conductor*</label></div><div id="ltLineDTSelector" style="display:none; background:var(--bg-glass); padding:8px; border-radius:8px; margin-bottom:12px;"><label style="position:static; display:block; margin-bottom:5px;">Select DT for LT Route*</label><select id="inpTargetDT" class="form-select" onchange="DiscomApp.UI.filterLineNodes()"></select></div><div class="form-grid-2"><div class="form-row"><select id="inpFromNode" class="form-select" onchange="DiscomApp.UI.syncLineToSelect()"></select><label>From Node*</label></div><div class="form-row"><select id="inpToNode" class="form-select"></select><label>To Node*</label></div></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewLine())">Save Line</button>`);
-        setTimeout(() => { let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); const targetDtSel = document.getElementById('inpTargetDT'); if(targetDtSel) targetDtSel.innerHTML = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')}</option>`).join(''); DiscomApp.UI.filterLineNodes(); DiscomApp.UI.toggleLineConductor('inpLineType', 'inpConductor'); }, 100);
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpLineType" class="form-select" onchange="DiscomApp.UI.filterLineNodes(); DiscomApp.UI.toggleLineConductor('inpLineType', 'inpConductor');"><option value="11 KV LINE" selected>11 KV (HT)</option><option value="LT LINE">LT Line</option></select><label>Voltage Type*</label></div><div class="form-row" id="linePhaseRow"><select id="inpLinePhase" class="form-select"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase Type (HT)*</label></div></div><div class="form-row"><select id="inpConductor" class="form-select"></select><label>Conductor*</label></div><div id="ltLineDTSelector" style="display:none; background:var(--bg-glass); padding:8px; border-radius:8px; margin-bottom:12px;"><label style="position:static; display:block; margin-bottom:5px;">Select DT for LT Route*</label><input type="text" id="filterTargetDT" class="form-input" style="padding:8px; margin-bottom:8px; min-height:40px; font-size:0.9rem;" placeholder="🔍 Search DT Code/Name..." onkeyup="DiscomApp.UI.filterSelect('filterTargetDT', 'inpTargetDT')"><select id="inpTargetDT" class="form-select" onchange="DiscomApp.UI.filterLineNodes()"></select></div><div class="form-grid-2"><div class="form-row"><select id="inpFromNode" class="form-select" onchange="DiscomApp.UI.syncLineToSelect()"></select><label>From Node*</label></div><div class="form-row"><select id="inpToNode" class="form-select"></select><label>To Node*</label></div></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewLine())">Save Line</button>`);
+        setTimeout(() => { let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, name: d.location||'', lat: d.lat, lng: d.lng})), snapLat, snapLng); const targetDtSel = document.getElementById('inpTargetDT'); if(targetDtSel) targetDtSel.innerHTML = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')} - ${d.name}</option>`).join(''); DiscomApp.UI.filterLineNodes(); DiscomApp.UI.toggleLineConductor('inpLineType', 'inpConductor'); }, 100);
     } else if (type === 'DT') {
         let parentNodes = (net.poles||[]).filter(p => p.lineType !== 'LT').map(p => ({id: 'POLE_'+p.poleNo, title: 'HT Pole '+p.poleNo, lat: p.lat, lng: p.lng})); const feederGss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if(feederGss) parentNodes.push({id: 'GSS_'+feederGss.code, title: 'GSS '+feederGss.code, lat: feederGss.lat, lng: feederGss.lng});
         parentNodes = DiscomApp.Map.sortByDistance(parentNodes, snapLat, snapLng); const parentOpts = parentNodes.map(p => `<option value="${p.id}">${p.title} (${DiscomApp.Map.getDistStr(p.lat, p.lng)})</option>`).join('');
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpDTParent" class="form-select">${parentOpts}</select><label>Connected To (HT Node)*</label></div><div class="form-row"><select id="inpDTMounted" class="form-select"><option value="Double Pole (DP)" selected>Double Pole (DP)</option><option value="Single Pole (SP)" selected>Single Pole (SP)</option><option value="Plinth">Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpDTCode" class="form-input" placeholder=" " value="${Math.floor(Math.random()*9000)}"><label>DT Code*</label></div><div class="form-row"><select id="inpDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating')"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="inpDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="inpDTLocation" class="form-input" placeholder=" "><label>Location / Landmark</label></div>${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewDT())">Save DT</button>`);
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="inpDTParent" class="form-select">${parentOpts}</select><label>Connected To (HT Node)*</label></div><div class="form-row"><select id="inpDTMounted" class="form-select"><option value="Double Pole (DP)" selected>Double Pole (DP)</option><option value="Single Pole (SP)" selected>Single Pole (SP)</option><option value="Plinth">Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="number" id="inpDTCode" class="form-input" placeholder=" " value="${Math.floor(Math.random()*9000)}"><label>DT Code*</label></div><div class="form-row"><select id="inpDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating')"><option value="Three Phase" selected>Three Phase</option><option value="Single Phase">Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="inpDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="inpDTLocation" class="form-input" placeholder=" "><label>Location / Landmark Name</label></div>${locHtml}<input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewDT())">Save DT</button>`);
         setTimeout(() => DiscomApp.UI.updateDTRatingDropdowns('inpDTPhase', 'inpDTRating'), 100);
     } else if (type === 'CONSUMER') {
-        if ((net.dts||[]).length === 0) return alert("Must have at least one DT!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, lat: d.lat, lng: d.lng})), snapLat, snapLng); const dtOpts = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('');
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><select id="inpConsDT" class="form-select" onchange="DiscomApp.UI.filterConsumerPoles()">${dtOpts}</select><label>Parent DT*</label></div><div class="form-row"><select id="inpConsParent" class="form-select"></select><label>Connects To*</label></div></div><div class="form-grid-2"><div class="form-row"><select id="inpConsStatus" class="form-select"><option value="Regular" selected>Regular</option><option value="DC">DC</option><option value="PDC">PDC</option></select><label>Status</label></div><div class="form-row"><select id="inpConsType" class="form-select"><option value="Domestic" selected>Domestic</option><option value="NonDomestic">NonDomestic</option><option value="Agriculture">Agriculture</option><option value="Govt.">Govt.</option><option value="SIP MIP">SIP MIP</option><option value="Other">Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsKno" class="form-input" placeholder=" "><label>K-Number*</label></div><div class="form-row"><input type="text" id="inpConsMeter" class="form-input" placeholder=" "><label>Meter No.</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsName" class="form-input" placeholder=" "><label>Consumer Name*</label></div><div class="form-row"><input type="text" id="inpConsLoad" class="form-input" placeholder=" " value="1 kW"><label>Load</label></div></div><input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewConsumer())">Save Consumer</button>`);
+        if ((net.dts||[]).length === 0) return alert("Must have at least one DT!"); let sortedDTs = DiscomApp.Map.sortByDistance((net.dts||[]).map(d=>({id: 'DT_'+d.code, name: d.location||'', lat: d.lat, lng: d.lng})), snapLat, snapLng); const dtOpts = sortedDTs.map(d => `<option value="${d.id}">${d.id.replace('_', ': ')} - ${d.name} (${DiscomApp.Map.getDistStr(d.lat, d.lng)})</option>`).join('');
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Add Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><input type="text" id="filterConsDT" class="form-input" style="padding:8px; margin-bottom:8px; min-height:40px; font-size:0.9rem;" placeholder="🔍 Search DT..." onkeyup="DiscomApp.UI.filterSelect('filterConsDT', 'inpConsDT')"><select id="inpConsDT" class="form-select" onchange="DiscomApp.UI.filterConsumerPoles()">${dtOpts}</select><label>Parent DT*</label></div><div class="form-row"><select id="inpConsParent" class="form-select" style="margin-top:48px;"></select><label>Connects To*</label></div></div><div class="form-grid-2"><div class="form-row"><select id="inpConsStatus" class="form-select"><option value="Regular" selected>Regular</option><option value="DC">DC</option><option value="PDC">PDC</option></select><label>Status</label></div><div class="form-row"><select id="inpConsType" class="form-select"><option value="Domestic" selected>Domestic</option><option value="NonDomestic">NonDomestic</option><option value="Agriculture">Agriculture</option><option value="Govt.">Govt.</option><option value="SIP MIP">SIP MIP</option><option value="Other">Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsKno" class="form-input" placeholder=" "><label>K-Number*</label></div><div class="form-row"><input type="text" id="inpConsMeter" class="form-input" placeholder=" "><label>Meter No.</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="inpConsName" class="form-input" placeholder=" "><label>Consumer Name*</label></div><div class="form-row"><input type="text" id="inpConsLoad" class="form-input" placeholder=" " value="1 kW"><label>Load</label></div></div>${locHtml}<input type="hidden" id="inpLat" value="${snapLat}"><input type="hidden" id="inpLng" value="${snapLng}">${DiscomApp.UI.getCameraFormHtml()}<button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveNewConsumer())">Save Consumer</button>`);
         setTimeout(() => DiscomApp.UI.filterConsumerPoles(), 100);
     }
 }
@@ -351,25 +378,17 @@ DiscomApp.UI.openEditModal = function(type, id) {
     if(!net) return;
     if (type === 'pole') { 
         const p = (net.poles||[]).find(x => x.id === id); if (!p) return; 
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Pole</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="editPoleNo" class="form-input" placeholder=" " value="${p.poleNo}" disabled><label>Pole Number (Locked)</label></div><div class="form-grid-2"><div class="form-row"><select id="editMainPoleType" class="form-select" onchange="DiscomApp.UI.togglePccConfig('editMainPoleType', 'editPccConfigDiv')"><option value="PCC" ${p.poleType==='PCC'?'selected':''}>PCC</option><option value="TOWER" ${p.poleType==='TOWER'?'selected':''}>TOWER</option><option value="RAIL POLE" ${p.poleType==='RAIL POLE'?'selected':''}>RAIL POLE</option></select><label>Pole Type*</label></div><div class="form-row"><select id="editPoleCondition" class="form-select"><option value="Good" ${p.condition==='Good'?'selected':''}>Good</option><option value="Tilted" ${p.condition==='Tilted'?'selected':''}>Tilted</option><option value="Damaged" ${p.condition==='Damaged'?'selected':''}>Damaged</option></select><label>Condition</label></div></div><div class="form-row" id="editPccConfigDiv" style="display:${p.poleType==='PCC'?'block':'none'};"><select id="editPccConfig" class="form-select"><option value="Single Pole" ${p.poleConfig==='Single Pole'?'selected':''}>Single Pole</option><option value="Double Pole" ${p.poleConfig==='Double Pole'?'selected':''}>Double Pole</option></select><label>PCC Configuration</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedPole('${p.id}'))">Update Changes</button>`); 
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Pole</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" id="editPoleNo" class="form-input" placeholder=" " value="${p.poleNo}" disabled><label>Pole Number (Locked)</label></div><div class="form-grid-2"><div class="form-row"><select id="editMainPoleType" class="form-select" onchange="DiscomApp.UI.togglePccConfig('editMainPoleType', 'editPccConfigDiv')"><option value="PCC" ${p.poleType==='PCC'?'selected':''}>PCC</option><option value="TOWER" ${p.poleType==='TOWER'?'selected':''}>TOWER</option><option value="RAIL POLE" ${p.poleType==='RAIL POLE'?'selected':''}>RAIL POLE</option></select><label>Pole Type*</label></div><div class="form-row"><select id="editPoleCondition" class="form-select"><option value="Good" ${p.condition==='Good'?'selected':''}>Good</option><option value="Tilted" ${p.condition==='Tilted'?'selected':''}>Tilted</option><option value="Damaged" ${p.condition==='Damaged'?'selected':''}>Damaged</option></select><label>Condition</label></div></div><div class="form-row" id="editPccConfigDiv" style="display:${p.poleType==='PCC'?'block':'none'};"><select id="editPccConfig" class="form-select"><option value="Single Pole" ${p.poleConfig==='Single Pole'?'selected':''}>Single Pole</option><option value="Double Pole" ${p.poleConfig==='Double Pole'?'selected':''}>Double Pole</option></select><label>PCC Configuration</label></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" value="${p.lat}" disabled><label>Latitude</label></div><div class="form-row"><input type="text" class="form-input" value="${p.lng}" disabled><label>Longitude</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedPole('${p.id}'))">Update Changes</button>`); 
     } else if (type === 'dt') { 
         const d = (net.dts||[]).find(x => x.id === id); if (!d) return; 
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="editDTMounted" class="form-select"><option value="Double Pole (DP)" ${d.mountedOn==='Double Pole (DP)'?'selected':''}>Double Pole (DP)</option><option value="Single Pole (SP)" ${d.mountedOn==='Single Pole (SP)'?'selected':''}>Single Pole (SP)</option><option value="Plinth" ${d.mountedOn==='Plinth'?'selected':''}>Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${d.code}" disabled><label>DT Code (Locked)</label></div><div class="form-row"><select id="editDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating')"><option value="Three Phase" ${d.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${d.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="editDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="editDTLocation" class="form-input" placeholder=" " value="${d.location || ''}"><label>Location</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedDT('${d.id}'))">Update Changes</button>`); setTimeout(() => { DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating'); document.getElementById('editDTRating').value = d.rating; }, 50); 
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update DT</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><select id="editDTMounted" class="form-select"><option value="Double Pole (DP)" ${d.mountedOn==='Double Pole (DP)'?'selected':''}>Double Pole (DP)</option><option value="Single Pole (SP)" ${d.mountedOn==='Single Pole (SP)'?'selected':''}>Single Pole (SP)</option><option value="Plinth" ${d.mountedOn==='Plinth'?'selected':''}>Plinth</option></select><label>Mounted On*</label></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${d.code}" disabled><label>DT Code (Locked)</label></div><div class="form-row"><select id="editDTPhase" class="form-select" onchange="DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating')"><option value="Three Phase" ${d.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${d.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase*</label></div></div><div class="form-row"><select id="editDTRating" class="form-select">${dtRatingOptionsHtml}</select><label>Rating (kVA)*</label></div><div class="form-row"><input type="text" id="editDTLocation" class="form-input" placeholder=" " value="${d.location || ''}"><label>Location / Landmark</label></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" value="${d.lat}" disabled><label>Latitude</label></div><div class="form-row"><input type="text" class="form-input" value="${d.lng}" disabled><label>Longitude</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedDT('${d.id}'))">Update Changes</button>`); setTimeout(() => { DiscomApp.UI.updateDTRatingDropdowns('editDTPhase', 'editDTRating'); document.getElementById('editDTRating').value = d.rating; }, 50); 
     } else if (type === 'consumer') { 
         const c = (net.consumers||[]).find(x => x.id === id); if (!c) return; 
-        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsName" class="form-input" placeholder=" " value="${c.name}"><label>Consumer Name*</label></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${c.kno}" disabled><label>K-Number (Locked)</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsMeter" class="form-input" placeholder=" " value="${c.meterNo||''}"><label>Meter No.</label></div><div class="form-row"><input type="text" id="editConsLoad" class="form-input" placeholder=" " value="${c.load||''}"><label>Load</label></div></div><div class="form-grid-2"><div class="form-row"><select id="editConsStatus" class="form-select"><option value="Regular" ${c.status==='Regular'?'selected':''}>Regular</option><option value="DC" ${c.status==='DC'?'selected':''}>DC</option><option value="PDC" ${c.status==='PDC'?'selected':''}>PDC</option></select><label>Status</label></div><div class="form-row"><select id="editConsType" class="form-select"><option value="Domestic" ${c.cType==='Domestic'?'selected':''}>Domestic</option><option value="NonDomestic" ${c.cType==='NonDomestic'?'selected':''}>NonDomestic</option><option value="Agriculture" ${c.cType==='Agriculture'?'selected':''}>Agriculture</option><option value="Govt." ${c.cType==='Govt.'?'selected':''}>Govt.</option><option value="SIP MIP" ${c.cType==='SIP MIP'?'selected':''}>SIP MIP</option><option value="Other" ${c.cType==='Other'?'selected':''}>Other</option></select><label>Type</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedConsumer('${c.id}'))">Update Changes</button>`); 
+        DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Consumer</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsName" class="form-input" placeholder=" " value="${c.name}"><label>Consumer Name*</label></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${c.kno}" disabled><label>K-Number (Locked)</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" id="editConsMeter" class="form-input" placeholder=" " value="${c.meterNo||''}"><label>Meter No.</label></div><div class="form-row"><input type="text" id="editConsLoad" class="form-input" placeholder=" " value="${c.load||''}"><label>Load</label></div></div><div class="form-grid-2"><div class="form-row"><select id="editConsStatus" class="form-select"><option value="Regular" ${c.status==='Regular'?'selected':''}>Regular</option><option value="DC" ${c.status==='DC'?'selected':''}>DC</option><option value="PDC" ${c.status==='PDC'?'selected':''}>PDC</option></select><label>Status</label></div><div class="form-row"><select id="editConsType" class="form-select"><option value="Domestic" ${c.cType==='Domestic'?'selected':''}>Domestic</option><option value="NonDomestic" ${c.cType==='NonDomestic'?'selected':''}>NonDomestic</option><option value="Agriculture" ${c.cType==='Agriculture'?'selected':''}>Agriculture</option><option value="Govt." ${c.cType==='Govt.'?'selected':''}>Govt.</option><option value="SIP MIP" ${c.cType==='SIP MIP'?'selected':''}>SIP MIP</option><option value="Other" ${c.cType==='Other'?'selected':''}>Other</option></select><label>Type</label></div></div><div class="form-grid-2"><div class="form-row"><input type="text" class="form-input" value="${c.lat}" disabled><label>Latitude</label></div><div class="form-row"><input type="text" class="form-input" value="${c.lng}" disabled><label>Longitude</label></div></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedConsumer('${c.id}'))">Update Changes</button>`); 
     } else if (type === 'line') { 
-        // FIX: Replaced strict HTML injection to resolve Line Open Bug
         const l = (net.lines||[]).find(x => x.id === id); if (!l) return; 
         const lType = l.type || ''; const isHT = lType.includes('11');
-        
-        let cOpts = "";
-        if (isHT) {
-            cOpts = `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>`;
-        } else {
-            cOpts = `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`;
-        }
-        
+        let cOpts = ""; if (isHT) { cOpts = `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>`; } else { cOpts = `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`; }
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${lType}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${isHT ? 'block' : 'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${cOpts}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Update Changes</button>`); 
     }
 }
