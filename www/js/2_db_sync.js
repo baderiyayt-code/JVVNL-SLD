@@ -130,7 +130,7 @@ DiscomApp.DB.pullFromSupabase = async function() {
     } catch (err) { console.error("Sync pull error:", err); DiscomApp.DB.setSyncStatus('offline'); DiscomApp.DB.updateUnsyncedBadge(); }
 };
 
-// FIX: Force Sync ab pehle Last Synced ka time batayega
+// FIX: Improved Force Sync with Popup
 DiscomApp.DB.forceSync = async function() {
     if(!navigator.onLine) return DiscomApp.UI.showToast("⚠️ You are offline!");
     
@@ -140,6 +140,7 @@ DiscomApp.DB.forceSync = async function() {
         lastMsg = mins <= 0 ? "Just now" : `${mins} mins ago`;
     }
     
+    // Popup Message before starting sync
     DiscomApp.UI.showToast(`Last synced: ${lastMsg}. Syncing now...`);
     
     await DiscomApp.DB.syncToSupabase();
