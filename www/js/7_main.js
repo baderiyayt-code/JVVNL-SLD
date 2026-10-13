@@ -23,10 +23,10 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
         if (data) { 
             if(data.feeders) DiscomApp.State.feeders = data.feeders;
             if(data.gssNodes) DiscomApp.State.gssNodes = data.gssNodes;
-            // FIX: Ensure default setting overrides
             if(data.settings) DiscomApp.State.settings = { ...DiscomApp.State.settings, ...data.settings };
             if(data.user) DiscomApp.State.user = { ...DiscomApp.State.user, ...data.user };
             if(data.currentFeederCode) DiscomApp.State.currentFeederCode = data.currentFeederCode;
+            if(data.lastSyncTime) DiscomApp.State.lastSyncTime = data.lastSyncTime;
             DiscomApp.State.orphanPoleIds = new Set();
             if(DiscomApp.UI.updateFeederDropdown) DiscomApp.UI.updateFeederDropdown(); 
         } 
@@ -39,7 +39,6 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
             setTimeout(() => { 
                 if(map) map.invalidateSize(); 
                 
-                // Force App Mode to Inspect on Boot
                 DiscomApp.State.appMode = 'inspect';
                 
                 if(DiscomApp.Map.renderEntireNetwork) DiscomApp.Map.renderEntireNetwork(); 
@@ -48,13 +47,20 @@ DiscomApp.Main.initializeAppPostPermissions = async function() {
                 if(DiscomApp.DB.updateUnsyncedBadge) DiscomApp.DB.updateUnsyncedBadge(); 
                 
                 const btn = document.getElementById('modeToggleBtn');
-                if(btn) {
-                    btn.innerHTML = '<i class="fa-solid fa-eye"></i>';
-                    btn.style.color = '#10b981';
-                }
+                if(btn) { btn.innerHTML = '<i class="fa-solid fa-eye"></i>'; btn.style.color = '#10b981'; }
                 
                 const fabContainer = document.getElementById('bottom-single-action');
                 if(fabContainer) fabContainer.style.display = 'none';
+                
+                // NAYA: KPI Bar mobile touch pan scroll injection
+                if(!document.getElementById('kpi-scroll-fix')) {
+                    const style = document.createElement('style');
+                    style.id = 'kpi-scroll-fix';
+                    style.innerHTML = `
+                        .kpi-row { touch-action: pan-x !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch !important; overscroll-behavior-x: contain; }
+                    `;
+                    document.head.appendChild(style);
+                }
                 
             }, 300); 
         } else { 
@@ -80,24 +86,31 @@ document.addEventListener("backbutton", function(e) {
 document.addEventListener('deviceready', DiscomApp.Main.startAppStartupSequence, false); 
 if (!window.cordova) { window.addEventListener('DOMContentLoaded', DiscomApp.Main.startAppStartupSequence); }
 
+// FIX: Instant Locate Me + Watch Position (Crosshair)
 DiscomApp.Main.toggleLiveTracking = function() {
     const btn = document.getElementById('liveTrackBtn');
     if (liveTrackWatchId) {
         navigator.geolocation.clearWatch(liveTrackWatchId); liveTrackWatchId = null;
         if (liveTrackMarker && typeof map !== 'undefined') map.removeLayer(liveTrackMarker);
         if (liveTrackCircle && typeof map !== 'undefined') map.removeLayer(liveTrackCircle);
-        liveTrackMarker = null; liveTrackCircle = null; btn.style.color = ''; DiscomApp.UI.showToast("Live Tracking Disabled");
+        liveTrackMarker = null; liveTrackCircle = null; btn.style.color = 'var(--text-main)'; DiscomApp.UI.showToast("Live Tracking Disabled");
     } else {
-        btn.style.color = '#3b82f6'; DiscomApp.UI.showToast("Live Tracking Enabled");
+        btn.style.color = '#3b82f6'; DiscomApp.UI.showToast("Fetching exact location...");
+        
+        // Instant FlyTo Current Location First
+        navigator.geolocation.getCurrentPosition((pos) => {
+            if(map) map.flyTo([pos.coords.latitude, pos.coords.longitude], 19, {animate:true, duration:1});
+        }, (err) => console.warn(err), { enableHighAccuracy: true });
+
+        // Start tracking
         liveTrackWatchId = navigator.geolocation.watchPosition((pos) => {
             const lat = pos.coords.latitude, lng = pos.coords.longitude, acc = pos.coords.accuracy; 
             if(!liveTrackMarker && typeof map !== 'undefined') {
                 liveTrackMarker = L.marker([lat, lng], { icon: L.divIcon({ className: 'live-gps-dot', html: '<div style="width:16px;height:16px;background:#3b82f6;border:3px solid white;border-radius:50%;"></div>', iconSize: [16,16], iconAnchor: [8,8] }), zIndexOffset: 9999 }).addTo(map);
                 liveTrackCircle = L.circle([lat, lng], { radius: acc, color: '#3b82f6', weight: 1, fillColor: '#3b82f6', fillOpacity: 0.15 }).addTo(map);
-                map.setView([lat, lng], 19);
             } else if(liveTrackMarker && liveTrackCircle) {
                 liveTrackMarker.setLatLng([lat, lng]); liveTrackCircle.setLatLng([lat, lng]); liveTrackCircle.setRadius(acc); 
             }
-        }, () => { btn.style.color = ''; liveTrackWatchId = null; }, { enableHighAccuracy: true, maximumAge: 0 });
+        }, () => { btn.style.color = 'var(--text-main)'; liveTrackWatchId = null; }, { enableHighAccuracy: true, maximumAge: 0 });
     }
 };
