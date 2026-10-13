@@ -78,14 +78,12 @@ DiscomApp.Export.generateCadSLDPdf = function() {
 
         nodes.forEach(n => {
             const pos = mapToPdf(n.lat, n.lng);
-            // FIX: Proper GSS Text Inside Box and Name Below Box
             if(n.type === 'GSS') { 
                 doc.setDrawColor(0,0,0); doc.setLineWidth(0.3); doc.setFillColor(220, 38, 38); 
                 doc.rect(pos.x - 3, pos.y - 2, 6, 4, 'FD'); 
                 doc.setFontSize(3.5); doc.setTextColor(255, 255, 255); doc.text("GSS", pos.x, pos.y + 0.5, { align: 'center', baseline: 'middle' }); 
                 doc.setFontSize(3.0); doc.setTextColor(0, 0, 0); doc.text(n.data.name || "GSS Name", pos.x, pos.y + 3.5, { align: 'center' });
             } 
-            // FIX: Ultra-thin border for DTs
             else if(n.type === 'DT') { 
                 doc.setFillColor(249, 115, 22); doc.setDrawColor(0,0,0); doc.setLineWidth(0.05); 
                 doc.rect(pos.x - 0.75, pos.y - 0.75, 1.5, 1.5, 'FD'); 
@@ -105,12 +103,18 @@ DiscomApp.Export.generateCadSLDPdf = function() {
             }
         });
 
+        // NAYA CODE: Summary Statistics Box update
+        let dt1Ph = 0, dt3Ph = 0;
+        (net.dts||[]).forEach(d => { if(d.phase === 'Single Phase') dt1Ph++; else dt3Ph++; });
+        let consCount = (net.consumers||[]).length;
+
         doc.setFillColor(255, 255, 255); doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); 
-        doc.rect(pageWidth - margin - 55, pageHeight - margin - 18, 53, 16, 'FD'); 
+        doc.rect(pageWidth - margin - 55, pageHeight - margin - 26, 53, 24, 'FD'); // Height increased
         doc.setFontSize(7); doc.setTextColor(0, 0, 0); 
-        doc.text(`Feeder Name: ${fName}`, pageWidth - margin - 53, pageHeight - margin - 13); 
-        doc.text(`Total HT Line: ${(totalHT/1000).toFixed(3)} km`, pageWidth - margin - 53, pageHeight - margin - 9); 
-        doc.text(`Total DTs: ${(net.dts||[]).length}`, pageWidth - margin - 53, pageHeight - margin - 5);
+        doc.text(`Feeder Name: ${fName}`, pageWidth - margin - 53, pageHeight - margin - 21); 
+        doc.text(`Total HT Line: ${(totalHT/1000).toFixed(3)} km`, pageWidth - margin - 53, pageHeight - margin - 17); 
+        doc.text(`Total DTs: ${(net.dts||[]).length} (3-Ph: ${dt3Ph} | 1-Ph: ${dt1Ph})`, pageWidth - margin - 53, pageHeight - margin - 13);
+        doc.text(`Total Consumers: ${consCount}`, pageWidth - margin - 53, pageHeight - margin - 9);
 
         const pdfBlob = doc.output('blob');
         DiscomApp.Export.downloadFileNative(pdfBlob, `${fName.replace(/\s+/g, '_')}_SLD.pdf`);
