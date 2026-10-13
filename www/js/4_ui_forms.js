@@ -39,7 +39,16 @@ DiscomApp.UI.applyTranslations = function() {
 DiscomApp.UI.applyTheme = function() { if(DiscomApp.State.settings.theme === 'dark') document.body.classList.add('dark-mode'); else document.body.classList.remove('dark-mode'); };
 DiscomApp.UI.showToast = function(msg) { const toast = document.getElementById('app-toast'), msgElem = document.getElementById('toast-msg'); if (!toast || !msgElem) return; msgElem.innerText = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 3500); };
 
-DiscomApp.UI.openModal = function(html) { document.getElementById('modalSheetContent').innerHTML = html; document.getElementById('formModalOverlay').classList.add('open'); tempPhotoUrl = null; };
+// NAYA SAFETY LOCK: justOpenedModal add kiya gaya hai
+DiscomApp.UI.justOpenedModal = false;
+DiscomApp.UI.openModal = function(html) { 
+    document.getElementById('modalSheetContent').innerHTML = html; 
+    document.getElementById('formModalOverlay').classList.add('open'); 
+    tempPhotoUrl = null; 
+    DiscomApp.UI.justOpenedModal = true; 
+    setTimeout(() => { DiscomApp.UI.justOpenedModal = false; }, 300);
+};
+
 DiscomApp.UI.closeModal = function() { document.getElementById('formModalOverlay').classList.remove('open'); const distInd = document.getElementById('live-distance-indicator'); if(distInd) distInd.style.display='none'; if(DiscomApp.State.user.isLoggedIn) { setTimeout(() => { if(typeof DiscomApp.UI.checkOnboardingFlow === 'function') DiscomApp.UI.checkOnboardingFlow(); }, 400); } };
 
 DiscomApp.UI.isSavingData = false; 
@@ -60,20 +69,20 @@ DiscomApp.UI.toggleSpeedDial = function(e) { if(e) { e.preventDefault(); e.stopP
 
 DiscomApp.UI.justOpenedSheet = false;
 
-// FIX: Ignoring clicks inside #full-photo-viewer so currentSelectedObj is not deleted
+// FIX: Outside Click Logic Improved with Safety Locks
 document.addEventListener('click', function(e) { 
-    if (DiscomApp.UI.justOpenedSheet) return;
     const dial = document.getElementById('speed-dial-menu'), fab = document.getElementById('mainFabBtn'); 
     if (dial && dial.classList.contains('active')) { if (!dial.contains(e.target) && !fab.contains(e.target)) { dial.classList.remove('active'); fab.classList.remove('open'); } } 
-    const sheet = document.getElementById('object-bottom-sheet');
     
-    // Yahan full-photo-viewer skip kiya gaya hai
-    if(sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm') && !e.target.closest('#full-photo-viewer')) { 
+    const sheet = document.getElementById('object-bottom-sheet');
+    if(!DiscomApp.UI.justOpenedSheet && sheet && sheet.classList.contains('open') && !sheet.contains(e.target) && !e.target.closest('.leaflet-marker-icon') && !e.target.closest('.action-btn-sm') && !e.target.closest('#full-photo-viewer')) { 
         DiscomApp.UI.closeObjectSheet(); 
     }
     
     const modal = document.getElementById('formModalOverlay');
-    if(modal && modal.classList.contains('open') && e.target === modal) { DiscomApp.UI.closeModal(); }
+    if(!DiscomApp.UI.justOpenedModal && modal && modal.classList.contains('open') && e.target === modal) { 
+        DiscomApp.UI.closeModal(); 
+    }
 });
 
 DiscomApp.UI.toggleSidebar = function(open) { document.getElementById('sidebar-drawer').classList.toggle('open', open); document.getElementById('sidebarBackdrop').classList.toggle('open', open); if(open) { DiscomApp.UI.renderGssSidebarList(); DiscomApp.UI.renderFeederSidebarList(); } };
@@ -148,10 +157,6 @@ DiscomApp.UI.clearSearch = function() { const bar = document.getElementById('app
 DiscomApp.UI.selectSearchResult = function(type, id) { const net = DiscomApp.State.getActiveNetwork(); if(!net) return; DiscomApp.UI.clearSearch(); DiscomApp.UI.toggleSearchBox(); let target = null, popupHtml = ''; if(type === 'CONSUMER') { target = net.consumers.find(c => c.id === id); if(target) popupHtml = `K-No: <b>${target.kno}</b>`; } else if(type === 'DT') { target = net.dts.find(d => d.id === id); if(target) popupHtml = `Rating: <b>${target.rating} kVA</b>`; } else if(type === 'POLE') { target = net.poles.find(p => p.id === id); if(target) popupHtml = `Type: <b>${target.lineType}</b>`; } if(target && target.lat) { if(map) map.flyTo([target.lat, target.lng], 19, { duration: 1 }); setTimeout(() => DiscomApp.UI.openObjectSheet(type, id, type === 'CONSUMER' ? target.name : (type === 'DT' ? `DT: ${target.code}` : `Pole: ${target.poleNo}`), popupHtml), 1000); } };
 DiscomApp.UI.closeObjectSheet = function() { document.getElementById('object-bottom-sheet').classList.remove('open'); currentSelectedObj = null; };
 
-// ==========================================
-// SMART PHOTO VIEWER & DELETE LOGIC
-// ==========================================
-
 DiscomApp.UI.handlePhotoClick = async function() {
     if(!currentSelectedObj) return;
     const isEdit = DiscomApp.State.appMode === 'edit';
@@ -171,7 +176,6 @@ DiscomApp.UI.deleteObjectPhotoFromViewer = function() {
     const id = currentSelectedObj.id;
     DiscomApp.DB.deletePhotoData(id);
     
-    // Clear thumbnails
     document.querySelectorAll('#objPhotoImg').forEach(imgEl => { imgEl.style.display = 'none'; imgEl.src = ''; });
     document.querySelectorAll('#objPhotoPlaceholder').forEach(placeholderEl => { placeholderEl.style.display = 'flex'; });
     
@@ -335,13 +339,14 @@ DiscomApp.UI.filterLineNodes = function() {
     nodes = DiscomApp.Map.sortByDistance(nodes, center.lat, center.lng); let defaultFrom = nodes.length > 0 ? nodes[0].id : ''; fromSel.innerHTML = nodes.map(n => `<option value="${n.id}" ${n.id === defaultFrom ? 'selected' : ''}>${n.title} (${DiscomApp.Map.getDistStr(n.lat, n.lng)})</option>`).join(''); DiscomApp.UI.syncLineToSelect(); DiscomApp.UI.toggleLineConductor('inpLineType', 'inpConductor');
 };
 
+// FIX: Bug Fixed, nodes.push applied safely
 DiscomApp.UI.syncLineToSelect = function() {
     const net = DiscomApp.State.getActiveNetwork(); if(!net) return; const type = document.getElementById('inpLineType')?.value || ''; const fromVal = document.getElementById('inpFromNode')?.value || ''; const toSel = document.getElementById('inpToNode'); if(!toSel) return;
     let nodes = []; let center = map ? map.getCenter() : {lat:26.91, lng:75.78};
     if (type.includes('LT')) {
         const selectedDT = document.getElementById('inpTargetDT') ? String(document.getElementById('inpTargetDT').value) : ''; const cleanDT = selectedDT.replace('DT_', '');
         nodes = (net.poles||[]).filter(p => p.lineType === 'LT' && String(p.dtCode) === cleanDT).map(p => ({id: 'POLE_' + p.poleNo, title: 'LT Pole: '+p.poleNo, lat: p.lat, lng: p.lng}));
-        if(cleanDT) { const dtObj = (net.dts||[]).find(d => String(d.code) === cleanDT); if(dtObj) nodespush({id: 'DT_'+cleanDT, title: 'DT: '+cleanDT, lat: dtObj.lat, lng: dtObj.lng}); }
+        if(cleanDT) { const dtObj = (net.dts||[]).find(d => String(d.code) === cleanDT); if(dtObj) nodes.push({id: 'DT_'+cleanDT, title: 'DT: '+cleanDT, lat: dtObj.lat, lng: dtObj.lng}); }
     } else {
         nodes = (net.poles||[]).filter(p => p.lineType !== 'LT').map(p => ({id: 'POLE_' + p.poleNo, title: 'HT Pole '+p.poleNo, lat: p.lat, lng: p.lng}));
         const parentGss = (net.feeder && net.feeder.parentGss) ? DiscomApp.State.gssNodes[net.feeder.parentGss] : null; if (parentGss && ('GSS_'+parentGss.code) !== fromVal) nodes.push({id: 'GSS_'+parentGss.code, title: 'GSS ('+parentGss.code+')', lat: parentGss.lat, lng: parentGss.lng});
@@ -357,12 +362,24 @@ DiscomApp.UI.filterConsumerPoles = function() {
     nodes = DiscomApp.Map.sortByDistance(nodes, centerLat, centerLng); document.getElementById('inpConsParent').innerHTML = nodes.map(n => `<option value="${n.id}">${n.title} (${DiscomApp.Map.getDistStr(n.lat, n.lng)})</option>`).join('');
 };
 
+DiscomApp.UI.getCameraFormHtml = () => `
+<div style="margin-top:20px; margin-bottom:10px; display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%;">
+    <div style="position:relative; width:160px; height:160px; margin:0 auto 15px auto; display:none;" id="photoPreviewContainer">
+        <img id="formTempPhoto" src="" onclick="DiscomApp.UI.openFullScreenPhoto(this.src)" style="width:100%; height:100%; object-fit:cover; border-radius:12px; border:2px solid var(--accent); box-shadow:0 4px 8px rgba(0,0,0,0.15); cursor:pointer;">
+        <div style="position:absolute; top:-10px; right:-10px; display:flex; gap:5px;">
+            <button type="button" onclick="DiscomApp.UI.captureTempPhoto()" style="background:#3b82f6; color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i class="fa-solid fa-rotate"></i></button>
+            <button type="button" onclick="DiscomApp.UI.clearTempPhoto()" style="background:#ef4444; color:white; border:none; border-radius:50%; width:36px; height:36px; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"><i class="fa-solid fa-trash"></i></button>
+        </div>
+    </div>
+    <button type="button" id="btnCaptureInit" class="btn-action-primary" style="padding:12px 24px; background:#0f172a; margin:0; border-radius:8px; width:100%;" onclick="DiscomApp.UI.captureTempPhoto()"><i class="fa-solid fa-camera"></i> Capture Photo</button>
+</div>`;
+
 DiscomApp.UI.openAddForm = function(type) { 
     DiscomApp.UI.toggleSpeedDial(false); 
     if (type === 'POLE' || type === 'LTPOLE' || type === 'CONSUMER') { 
         DiscomApp.State.placementType = type; document.getElementById('center-placement-pin').style.display = 'block'; document.getElementById('bottom-single-action').style.display = 'none'; 
         let confirmBar = document.getElementById('placement-confirm-bar'); 
-        if(!confirmBar) { confirmBar = document.createElement('div'); confirmBar.id = 'placement-confirm-bar'; confirmBar.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:10px; width:90%; max-width:400px; pointer-events:auto;'; confirmBar.innerHTML = `<button type="button" class="btn-danger-outline" style="background:white; margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.cancelPlacement(event)">Cancel</button><button type="button" class="btn-action-primary" style="margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onpointerdown="event.stopPropagation();" onclick="DiscomApp.UI.confirmPlacement(event)">Place Here</button>`; document.body.appendChild(confirmBar); if(typeof L !== 'undefined' && L.DomEvent) { L.DomEvent.disableClickPropagation(confirmBar); L.DomEvent.disableScrollPropagation(confirmBar); } }
+        if(!confirmBar) { confirmBar = document.createElement('div'); confirmBar.id = 'placement-confirm-bar'; confirmBar.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); z-index:9999999; display:flex; gap:10px; width:90%; max-width:400px; pointer-events:auto;'; confirmBar.innerHTML = `<button type="button" class="btn-danger-outline" style="background:white; margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onclick="DiscomApp.UI.cancelPlacement(event)">Cancel</button><button type="button" class="btn-action-primary" style="margin-top:0; pointer-events:auto; flex:1; font-weight:800;" onclick="DiscomApp.UI.confirmPlacement(event)">Place Here</button>`; document.body.appendChild(confirmBar); if(typeof L !== 'undefined' && L.DomEvent) { L.DomEvent.disableClickPropagation(confirmBar); L.DomEvent.disableScrollPropagation(confirmBar); } }
         confirmBar.style.display = 'flex'; 
     } else { DiscomApp.UI.showFormModal(type, null, null); } 
 }
@@ -414,8 +431,7 @@ DiscomApp.UI.openEditModal = function(type, id) {
     } else if (type === 'line') { 
         const l = (net.lines||[]).find(x => x.id === id); if (!l) return; 
         const lType = l.type || ''; const isHT = lType.includes('11');
-        let cOpts = "";
-        if (isHT) { cOpts = `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>`; } else { cOpts = `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`; }
+        let cOpts = ""; if (isHT) { cOpts = `<option value="Weasel" ${l.conductor==='Weasel'?'selected':''}>Weasel</option><option value="Rabbit" ${l.conductor==='Rabbit'?'selected':''}>Rabbit</option><option value="Dog" ${l.conductor==='Dog'?'selected':''}>Dog</option><option value="Underground Cable" ${l.conductor==='Underground Cable'?'selected':''}>Underground Cable</option>`; } else { cOpts = `<option value="Single Phase" ${l.conductor==='Single Phase'?'selected':''}>Single Phase</option><option value="Three Phase" ${l.conductor==='Three Phase'?'selected':''}>Three Phase</option>`; }
         DiscomApp.UI.openModal(`<div class="sheet-head"><div class="sheet-title">Update Line</div><button class="sheet-close-btn" onclick="DiscomApp.UI.closeModal()"><i class="fa-solid fa-xmark"></i></button></div><div class="form-row"><input type="text" class="form-input" placeholder=" " value="${lType}" disabled><label>Voltage Type (Locked)</label></div><div class="form-row" id="editLinePhaseRow" style="display:${isHT ? 'block' : 'none'}"><select id="editLinePhase" class="form-select"><option value="Three Phase" ${l.phase==='Three Phase'?'selected':''}>Three Phase</option><option value="Single Phase" ${l.phase==='Single Phase'?'selected':''}>Single Phase</option></select><label>Phase Type (HT)*</label></div><div class="form-row"><select id="editLineConductor" class="form-select">${cOpts}</select><label>Conductor</label></div><button class="btn-action-primary" onclick="DiscomApp.UI.executeSafeSave(() => DiscomApp.CRUD.saveEditedLine('${l.id}'))">Update Changes</button>`); 
     }
 }
